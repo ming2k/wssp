@@ -29,11 +29,12 @@ fn generate_id() -> String {
 impl Service {
     async fn open_session(
         &self,
+        #[zbus(object_server)] server: &zbus::ObjectServer,
         algorithm: &str,
         input: zbus::zvariant::Value<'_>,
     ) -> std::result::Result<(zbus::zvariant::Value<'static>, OwnedObjectPath), zbus::fdo::Error>
     {
-        info!("OpenSession: algorithm={}", algorithm);
+        debug!("OpenSession: algorithm={}", algorithm);
 
         let (result_val, algo) = match algorithm {
             "plain" => (
@@ -55,9 +56,10 @@ impl Service {
             _ => return Err(WssDaemonError::InvalidArgs("Unsupported algorithm".into()).into()),
         };
 
+        let session_id = generate_id();
         let session_path = OwnedObjectPath::try_from(format!(
             "/org/freedesktop/secrets/session/s{}",
-            generate_id()
+            session_id
         ))
         .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
 
@@ -65,6 +67,10 @@ impl Service {
             id: session_path.clone(),
             algorithm: algo,
         });
+        
+        // 关键修复：解引用 Arc 并克隆 Session 对象进行注册
+        server.at(session_path.clone(), (*session).clone()).await?;
+
         self.state
             .write()
             .await
@@ -114,6 +120,7 @@ impl Service {
         &self,
         attributes: std::collections::HashMap<&str, &str>,
     ) -> zbus::fdo::Result<(Vec<OwnedObjectPath>, Vec<OwnedObjectPath>)> {
+        debug!("SearchItems called with {} attributes", attributes.len());
         let state = self.state.read().await;
         let mut matched = Vec::new();
 
@@ -149,7 +156,7 @@ impl Service {
         #[zbus(connection)] conn: &zbus::Connection,
         objects: Vec<ObjectPath<'_>>,
     ) -> zbus::fdo::Result<(Vec<OwnedObjectPath>, OwnedObjectPath)> {
-        info!("Unlock called for {} objects", objects.len());
+        debug!("Unlock called for {} objects", objects.len());
 
         // Atomically check state and claim the unlock slot
         let prompt_id = {
@@ -285,6 +292,7 @@ impl Service {
     ) -> zbus::fdo::Result<
         std::collections::HashMap<OwnedObjectPath, (OwnedObjectPath, Vec<u8>, Vec<u8>, String)>,
     > {
+        debug!("GetSecrets called for {} items", items.len());
         let state = self.state.read().await;
         let session = state
             .sessions
@@ -341,6 +349,7 @@ impl Service {
     }
 
     async fn read_alias(&self, alias: &str) -> zbus::fdo::Result<OwnedObjectPath> {
+        debug!("ReadAlias called for alias: {}", alias);
         let state = self.state.read().await;
         let target = if alias == "default" && !state.collections.contains_key("default") {
             "login"
@@ -364,6 +373,7 @@ impl Service {
 
     #[zbus(property)]
     async fn collections(&self) -> Vec<OwnedObjectPath> {
+        debug!("Property 'Collections' read");
         let state = self.state.read().await;
         let mut paths = Vec::new();
         for (id, col) in state.collections.iter() {
@@ -393,7 +403,9 @@ pub fn load_vault(
         std::fs::write(salt_path, &salt)?;
         let key = Vault::derive_key(password, &salt)?;
         let vault = Vault::new(vault_path.to_path_buf(), key);
-        return Ok((vault, VaultData { collections: vec![] }));
+        let data = VaultData { collections: vec![] };
+        vault.save(&data)?; // 必须保存，否则下次启动会找不到文件
+        return Ok((vault, data));
     }
 
     let salt = std::fs::read_to_string(salt_path)?;

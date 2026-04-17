@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-04-18
+
+### Fixed
+- Fixed "swallowed keys" issue in the prompter by ensuring proper window focus and input field activation.
+- Made prompter window modal and set default button for better user experience.
+
+### Changed
+- Reduced log noise by removing `[NATIVE]` and `[PORTAL]` prefixes.
+- Downgraded internal D-Bus operation logs from `info` to `debug` level.
+
 ## [1.0.0] - 2026-04-18
 
 ### Added

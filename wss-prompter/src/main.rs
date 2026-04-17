@@ -30,6 +30,7 @@ fn build_ui(app: &Application) {
         .title(if is_create { "Setup Vault" } else { "Vault Unlock" })
         .default_width(360)
         .resizable(false)
+        .modal(true)
         .build();
 
     // Remove the HeaderBar and use a simple vertical box
@@ -71,6 +72,7 @@ fn build_ui(app: &Application) {
         .css_classes(["suggested-action"])
         .margin_top(6)
         .build();
+    window.set_default_widget(Some(&unlock_button));
 
     let window_clone = window.clone();
     let entry_clone = password_entry.clone();
@@ -108,6 +110,7 @@ fn build_ui(app: &Application) {
     content.append(&vbox);
     window.set_content(Some(&content));
     window.present();
+    password_entry.grab_focus();
 }
 
 fn send_password(password: String) {

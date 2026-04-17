@@ -1,6 +1,7 @@
 use crate::state::State;
 use std::collections::HashMap;
-use std::os::unix::io::FromRawFd;
+use std::os::unix::io::{AsRawFd, FromRawFd};
+use std::os::fd::AsFd;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
@@ -38,7 +39,7 @@ impl PortalSecret {
         fd: Fd<'_>,
         _options: HashMap<String, Value<'_>>,
     ) -> zbus::fdo::Result<HashMap<String, Value<'static>>> {
-        info!(%app_id, %handle, "Portal RetrieveSecret called");
+        debug!(%app_id, %handle, "RetrieveSecret called from sandboxed application (Portal)");
 
         let state_guard = self.state.read().await;
         if !state_guard.is_unlocked {
@@ -58,7 +59,7 @@ impl PortalSecret {
         // Transfer the secret through the file descriptor.
         // We use UnixStream to wrap the raw FD for asynchronous I/O.
         let mut stream = unsafe {
-            let std_stream = std::os::unix::net::UnixStream::from_raw_fd(fd.as_raw_fd());
+            let std_stream = std::os::unix::net::UnixStream::from_raw_fd(fd.as_fd().as_raw_fd());
             // Ensure the FD isn't closed when std_stream is dropped prematurely
             UnixStream::from_std(std_stream).map_err(|e| {
                 error!(error = %e, "Failed to create UnixStream from portal FD");

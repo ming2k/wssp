@@ -11,6 +11,7 @@ use zbus::interface;
 use zbus::zvariant::OwnedObjectPath;
 use zeroize::Zeroize;
 
+#[derive(Clone)]
 pub enum SessionAlgorithm {
     Plain,
     Dh(Vec<u8>),
@@ -24,6 +25,7 @@ impl Drop for SessionAlgorithm {
     }
 }
 
+#[derive(Clone)]
 pub struct Session {
     pub id: OwnedObjectPath,
     pub algorithm: SessionAlgorithm,

@@ -30,6 +30,7 @@ impl Collection {
         &self,
         attributes: HashMap<&str, &str>,
     ) -> zbus::fdo::Result<Vec<OwnedObjectPath>> {
+        debug!("Collection::SearchItems called for collection: {} with {} attributes", self.id, attributes.len());
         let items = self.items.read().await;
         let mut matched = Vec::new();
         for (id, item) in items.iter() {

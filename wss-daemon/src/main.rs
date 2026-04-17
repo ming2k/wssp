@@ -26,10 +26,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Starting wss-daemon...");
 
     let proj_dirs =
-        ProjectDirs::from("org", "wssp", "wss").ok_or("Could not determine project directories")?;
+        ProjectDirs::from("org", "wssp", "wssp").ok_or("Could not determine project directories")?;
     std::fs::create_dir_all(proj_dirs.data_dir())?;
     let vault_path = proj_dirs.data_dir().join("vault.enc");
     let salt_path = proj_dirs.data_dir().join("vault.salt");
+    info!("Vault path: {:?}", vault_path);
+    info!("Salt path: {:?}", salt_path);
 
     let state = Arc::new(RwLock::new(State::new(
         vault_path.clone(),

@@ -1,6 +1,6 @@
 use crate::error::{CoreError, Result};
 use argon2::{
-    password_hash::{PasswordHasher, SaltString},
+    password_hash::SaltString,
     Argon2,
 };
 use chacha20poly1305::{
@@ -43,6 +43,10 @@ pub struct Vault {
 }
 
 impl Vault {
+    pub fn get_master_key(&self) -> &[u8; 32] {
+        &self.master_key
+    }
+
     pub fn new(path: PathBuf, master_key: [u8; 32]) -> Self {
         Self { path, master_key }
     }
@@ -51,17 +55,12 @@ impl Vault {
         let salt = SaltString::from_b64(salt_str)
             .map_err(|e| CoreError::Crypto(format!("Invalid salt: {}", e)))?;
         let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
+        
+        let mut key = [0u8; 32];
+        argon2
+            .hash_password_into(password.as_bytes(), salt.as_str().as_bytes(), &mut key)
             .map_err(|e| CoreError::Crypto(format!("Hash failed: {}", e)))?;
 
-        let hash = password_hash
-            .hash
-            .ok_or_else(|| CoreError::Vault("Failed to generate hash".to_string()))?;
-        let mut key = [0u8; 32];
-        let hash_bytes = hash.as_bytes();
-        let len = std::cmp::min(key.len(), hash_bytes.len());
-        key[..len].copy_from_slice(&hash_bytes[..len]);
         Ok(key)
     }
 
