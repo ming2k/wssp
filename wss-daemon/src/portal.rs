@@ -6,7 +6,7 @@ use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use zbus::interface;
 use zbus::zvariant::{Fd, ObjectPath, Value};
 

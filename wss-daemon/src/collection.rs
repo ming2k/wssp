@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use zbus::interface;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath, Value};
 

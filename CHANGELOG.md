@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.1] - 2026-04-18
+## [1.0.2] - 2026-04-18
+
+### Fixed
+- Fixed missing `debug` macro imports in `wss-daemon`.
+
+## [1.0.1] - 2026-04-18 [YANKED]
 
 ### Fixed
 - Fixed "swallowed keys" issue in the prompter by ensuring proper window focus and input field activation.
