@@ -1,0 +1,4 @@
+[Portal]
+DBusName=org.freedesktop.secrets
+Interfaces=org.freedesktop.impl.portal.Secret
+UseIn=gnome;kde;wayland;sway;hyprland;

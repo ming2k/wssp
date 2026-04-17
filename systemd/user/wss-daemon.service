@@ -1,0 +1,31 @@
+[Unit]
+Description=Wayland Secret Service Provider (WSSP) Daemon
+Documentation=https://github.com/your-repo/wssp
+PartOf=graphical-session.target
+
+[Service]
+Type=dbus
+BusName=org.freedesktop.secrets
+ExecStart=/usr/bin/wss-daemon
+Restart=on-failure
+RestartSec=2
+
+# Security hardening
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectHome=read-only
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+RestrictRealtime=yes
+UMask=0077
+
+# Environment for Headless/IoT deployments (Uncomment to use)
+# Environment="WSSP_PASSWORD=your_secure_device_password"
+
+[Install]
+WantedBy=default.target
