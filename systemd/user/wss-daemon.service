@@ -20,9 +20,17 @@ ProtectHome=read-only
 ProtectKernelLogs=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
-ProtectSystem=strict
+ProtectSystem=full
 RestrictRealtime=yes
 UMask=0077
+
+# Allow writing to XDG_RUNTIME_DIR for the IPC socket
+ReadWritePaths=%t
+# Allow writing to the data directory for the vault
+ReadWritePaths=%h/.local/share/wssp
+
+# Ensure GUI environment is available for the prompter
+PassEnvironment=WAYLAND_DISPLAY DISPLAY XDG_RUNTIME_DIR
 
 # Environment for Headless/IoT deployments (Uncomment to use)
 # Environment="WSSP_PASSWORD=your_secure_device_password"
