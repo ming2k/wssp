@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "wss-daemon",
-    "wss-prompter",
-    "wss-common",
-    "wss-cli",
-    "wss-pam"
-, "wss-core"]
+    "wssp-daemon",
+    "wssp-prompter",
+    "wssp-common",
+    "wssp-cli",
+    "wssp-pam"
+, "wssp-core"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -32,5 +32,4 @@ num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 gtk4 = { version = "0.9.7", package = "gtk4" }
 libadwaita = { version = "0.7.2", package = "libadwaita" }
-
-
+inotify = { version = "0.10", features = ["stream"] }

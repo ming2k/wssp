@@ -1,0 +1,31 @@
+[package]
+name = "wssp-daemon"
+version = "1.1.0"
+edition = "2021"
+
+[dependencies]
+wssp-common = { path = "../wssp-common" }
+wssp-core = { path = "../wssp-core" }
+tokio = { workspace = true }
+zbus = { workspace = true }
+oo7 = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+directories = { workspace = true }
+rand = { workspace = true }
+chacha20poly1305 = { workspace = true }
+argon2 = { workspace = true }
+zeroize = { workspace = true }
+aes = { workspace = true }
+cbc = { workspace = true }
+sha2 = { workspace = true }
+hkdf = { workspace = true }
+hmac = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+thiserror = { workspace = true }
+libc = "0.2"
+inotify = { workspace = true }

@@ -75,8 +75,8 @@ key only protects the D-Bus wire transport (loopback), not the vault at rest. Th
 XChaCha20-Poly1305 with a 256-bit key, which is not affected.
 
 ### PAM token is plaintext on disk
-`wss-pam` writes the login password to `/run/user/<UID>/wssp-pam-token` (mode 0600). The file
-exists only between PAM `authenticate()` and `wss-daemon` startup. If the daemon crashes before
+`wssp-pam` writes the login password to `/run/user/<UID>/wssp-pam-token` (mode 0600). The file
+exists only between PAM `authenticate()` and `wssp-daemon` startup. If the daemon crashes before
 reading it, the file persists with a plaintext credential until the next login. A future
 improvement would use a kernel keyring or `memfd_create()` to avoid filesystem exposure.
 

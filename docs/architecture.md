@@ -9,17 +9,17 @@ in its core and is compatible with any application that uses libsecret or the ra
 
 ```
 wssp/
-├── wss-core/        Pure cryptographic core (no D-Bus, no async)
-├── wss-daemon/      D-Bus service and state management
-├── wss-common/      IPC type definitions shared between daemon and prompter
-├── wss-prompter/    Transient GTK4 password prompt UI
-├── wss-cli/         Headless CLI for scripted unlocking
-└── wss-pam/         PAM module for automatic login-time unlock
+├── wssp-core/        Pure cryptographic core (no D-Bus, no async)
+├── wssp-daemon/      D-Bus service and state management
+├── wssp-common/      IPC type definitions shared between daemon and prompter
+├── wssp-prompter/    Transient GTK4 password prompt UI
+├── wssp-cli/         Headless CLI for scripted unlocking
+└── wssp-pam/         PAM module for automatic login-time unlock
 ```
 
 ## Component Descriptions
 
-### `wss-core` — Cryptographic Engine
+### `wssp-core` — Cryptographic Engine
 
 A pure Rust library with no async or D-Bus dependencies.
 
@@ -32,12 +32,12 @@ The `Vault` struct owns the master key `[u8; 32]` and the on-disk path. All sens
 (`VaultData`, `CollectionData`, `ItemData`) derive `Zeroize` + `#[zeroize(drop)]` so memory
 is cleared on drop.
 
-### `wss-daemon` — D-Bus Service
+### `wssp-daemon` — D-Bus Service
 
 The persistent background process. No GTK or graphical dependencies.
 
 ```
-wss-daemon/src/
+wssp-daemon/src/
 ├── main.rs        Startup, PAM auto-unlock, D-Bus connection setup
 ├── service.rs     org.freedesktop.Secret.Service interface
 ├── collection.rs  org.freedesktop.Secret.Collection interface
@@ -45,9 +45,9 @@ wss-daemon/src/
 ├── session.rs     DH key exchange + AES-128-CBC-PKCS7 en/decryption
 ├── prompt.rs      org.freedesktop.Secret.Prompt interface + Completed signal
 ├── portal.rs      org.freedesktop.portal.Secret stub
-├── ipc.rs         Unix socket listener; spawns wss-prompter
+├── ipc.rs         Unix socket listener; spawns wssp-prompter
 ├── state.rs       Shared mutable state (Arc<RwLock<State>>)
-├── vault.rs       Re-export of wss-core::vault
+├── vault.rs       Re-export of wssp-core::vault
 └── error.rs       WssDaemonError mapped to zbus::fdo::Error
 ```
 
@@ -57,13 +57,13 @@ wss-daemon/src/
 **Persistence**: every write operation (`create_item`, `set_secret`, `delete`) calls
 `state.sync_to_vault()`, which serializes the entire in-memory graph and re-encrypts it to disk.
 
-### `wss-common` — Shared IPC Types
+### `wssp-common` — Shared IPC Types
 
 Contains `PromptResponse { password: Option<String> }`, serialized as JSON over the Unix socket.
 
-### `wss-prompter` — Password UI
+### `wssp-prompter` — Password UI
 
-A GTK4 / Libadwaita application that is **spawned on demand** by `wss-daemon`. It has two modes:
+A GTK4 / Libadwaita application that is **spawned on demand** by `wssp-daemon`. It has two modes:
 
 | Mode (`WSSP_PROMPT_MODE`) | Purpose |
 |--------------------------|---------|
@@ -77,14 +77,14 @@ After the user submits a password (or cancels), the prompter:
 
 The prompter process does **not** stay running. Its lifetime is limited to a single interaction.
 
-### `wss-cli` — Headless Unlock
+### `wssp-cli` — Headless Unlock
 
-A minimal CLI (`wss-cli unlock <password>`) that writes a `PromptResponse` directly to the
+A minimal CLI (`wssp-cli unlock <password>`) that writes a `PromptResponse` directly to the
 daemon's Unix socket. Used for scripted environments where no GUI is available.
 
-### `wss-pam` — Login Integration
+### `wssp-pam` — Login Integration
 
-A PAM shared library (`libwss_pam.so`) that intercepts the user's login credentials.
+A PAM shared library (`libwssp_pam.so`) that intercepts the user's login credentials.
 
 On authenticate:
 1. Reads the auth token from PAM
@@ -102,7 +102,7 @@ Every client interaction that transfers a secret uses an encrypted session. The 
 `dh-ietf1024-sha256-aes128-cbc-pkcs7` as defined in the Secret Service spec.
 
 ```
-Client (libsecret)                      Daemon (wss-daemon)
+Client (libsecret)                      Daemon (wssp-daemon)
 ─────────────────                       ──────────────────
 Generate client_priv (random)
 client_pub = 2^client_priv mod P
@@ -142,7 +142,7 @@ Plain `SHA256(shared)` produces a different key and is **not** compatible.
    a. Calls ipc::request_password(is_initial)
       ├── Headless: read WSSP_PASSWORD env var
       └── GUI:      create $XDG_RUNTIME_DIR/wssp.sock
-                    spawn wss-prompter
+                    spawn wssp-prompter
                     accept connection (60s timeout)
                     read PromptResponse (10s timeout)
    b. load_vault(password, vault_path, salt_path, is_initial)

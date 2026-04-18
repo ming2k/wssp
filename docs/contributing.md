@@ -40,10 +40,10 @@ cryptographic correctness and memory-safety implications:
 
 | File | What to verify |
 |------|---------------|
-| `wss-daemon/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
-| `wss-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
-| `wss-daemon/src/ipc.rs` | Socket permissions, timeout handling |
-| `wss-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
+| `wssp-daemon/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
+| `wssp-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
+| `wssp-daemon/src/ipc.rs` | Socket permissions, timeout handling |
+| `wssp-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
 
 **Documentation**: if you change a data flow, update `docs/architecture.md`. If you change a
 cryptographic primitive, update `docs/security.md`.

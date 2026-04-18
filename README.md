@@ -21,14 +21,14 @@ cargo build --release
 Copy the service unit file to your local systemd directory:
 ```bash
 mkdir -p ~/.config/systemd/user/
-cp systemd/user/wss-daemon.service ~/.config/systemd/user/
+cp systemd/user/wssp-daemon.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now wss-daemon.service
+systemctl --user enable --now wssp-daemon.service
 ```
 
 ### 3. Automatic Unlock (PAM Module)
 To enable automatic unlocking upon system login:
-1. Compile the PAM module: `cargo build --release -p wss-pam`.
+1. Compile the PAM module: `cargo build --release -p wssp-pam`.
 2. Install the binary: `sudo cp target/release/libpam_wssp.so /lib/security/pam_wssp.so`.
 3. Add to your PAM configuration (e.g., `/etc/pam.d/login`):
    ```text

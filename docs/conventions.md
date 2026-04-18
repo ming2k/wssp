@@ -16,7 +16,7 @@ a comment explaining why:
 |---------|------|--------|
 | Internal logic | `Result<T, Box<dyn Error + Send + Sync>>` | Flexible `?` propagation across threads |
 | D-Bus interface methods | `zbus::fdo::Result<T>` | Maps to D-Bus error replies |
-| `wss-core` | `core::error::Result<T>` | No async, no D-Bus, typed errors |
+| `wssp-core` | `core::error::Result<T>` | No async, no D-Bus, typed errors |
 
 Convert between layers at the boundary:
 ```rust

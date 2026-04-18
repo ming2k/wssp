@@ -24,7 +24,7 @@ sudo apt install busctl secret-tool d-feet
 cargo build
 
 # Daemon only (faster iteration)
-cargo build -p wss-daemon
+cargo build -p wssp-daemon
 ```
 
 ## Running the Daemon
@@ -35,10 +35,10 @@ first, or run inside a separate D-Bus session (see _Isolated D-Bus session_ belo
 
 ```bash
 # Standard run with debug logging
-RUST_LOG=debug cargo run -p wss-daemon
+RUST_LOG=debug cargo run -p wssp-daemon
 
 # Run with the prompter binary path explicitly set
-WSSP_PROMPTER_PATH=./target/debug/wss-prompter RUST_LOG=debug cargo run -p wss-daemon
+WSSP_PROMPTER_PATH=./target/debug/wssp-prompter RUST_LOG=debug cargo run -p wssp-daemon
 ```
 
 ### Key environment variables
@@ -46,16 +46,16 @@ WSSP_PROMPTER_PATH=./target/debug/wss-prompter RUST_LOG=debug cargo run -p wss-d
 | Variable | Effect |
 |----------|--------|
 | `RUST_LOG` | Log verbosity: `error`, `warn`, `info`, `debug`, `trace` |
-| `WSSP_PROMPTER_PATH` | Absolute or relative path to `wss-prompter` binary |
+| `WSSP_PROMPTER_PATH` | Absolute or relative path to `wssp-prompter` binary |
 | `WSSP_PASSWORD` | Skip GUI; used when `WAYLAND_DISPLAY` and `DISPLAY` are both unset |
-| `WSSP_PROMPT_MODE=create` | Tell `wss-prompter` to show the "set new password" UI |
+| `WSSP_PROMPT_MODE=create` | Tell `wssp-prompter` to show the "set new password" UI |
 
 ## Testing with `secret-tool`
 
 Build both binaries first, then in one terminal:
 
 ```bash
-cargo build && WSSP_PROMPTER_PATH=./target/debug/wss-prompter ./target/debug/wss-daemon
+cargo build && WSSP_PROMPTER_PATH=./target/debug/wssp-prompter ./target/debug/wssp-daemon
 ```
 
 In another terminal:
@@ -134,10 +134,10 @@ Expected: `vs o "" "/org/freedesktop/secrets/session/s<hex>"`
 cargo test
 
 # Crypto unit tests only
-cargo test -p wss-daemon session::tests
+cargo test -p wssp-daemon session::tests
 
 # Vault tests
-cargo test -p wss-core
+cargo test -p wssp-core
 ```
 
 The `session::tests` module contains:
@@ -177,7 +177,7 @@ eval $(dbus-launch --sh-syntax)
 echo "Session bus: $DBUS_SESSION_BUS_ADDRESS"
 
 # In the same shell, run the daemon
-cargo run -p wss-daemon
+cargo run -p wssp-daemon
 
 # In another shell, set the same DBUS_SESSION_BUS_ADDRESS and use secret-tool
 ```
@@ -187,18 +187,18 @@ cargo run -p wss-daemon
 The PAM module requires root to install and a real PAM stack to test end-to-end. For unit
 testing:
 
-1. Build: `cargo build -p wss-pam`
+1. Build: `cargo build -p wssp-pam`
 2. Simulate its behaviour manually:
    ```bash
    echo -n "mypassword" > /run/user/$(id -u)/wssp-pam-token
    chmod 600 /run/user/$(id -u)/wssp-pam-token
    ```
-3. Start `wss-daemon` — it should auto-unlock and log:
+3. Start `wssp-daemon` — it should auto-unlock and log:
    `PAM token found; attempting automatic unlock.`
 
 To install the module (system-wide):
 ```bash
-sudo cp target/release/libwss_pam.so /lib/security/pam_wssp.so
+sudo cp target/release/libwssp_pam.so /lib/security/pam_wssp.so
 # Add to /etc/pam.d/login (after the pam_unix.so auth line):
 # auth optional pam_wssp.so
 ```
@@ -210,7 +210,7 @@ The client and daemon derived different AES session keys. Likely causes:
 - Key derivation mismatch (must be HKDF-SHA256, not plain SHA256)
 - D-Bus variant type mismatch when extracting the client's DH public key
 
-Run `cargo test -p wss-daemon session::tests::full_dh_roundtrip` — if it passes, the
+Run `cargo test -p wssp-daemon session::tests::full_dh_roundtrip` — if it passes, the
 daemon's own DH is internally consistent. If the error still occurs with `secret-tool`,
 use `dbus-monitor` to capture the raw public key bytes.
 
@@ -218,7 +218,7 @@ use `dbus-monitor` to capture the raw public key bytes.
 Another process holds `org.freedesktop.secrets`:
 ```bash
 busctl --user status org.freedesktop.secrets
-pkill wss-daemon      # or stop gnome-keyring
+pkill wssp-daemon      # or stop gnome-keyring
 ```
 
 ### `wssp.sock already in use`
@@ -229,8 +229,8 @@ rm $XDG_RUNTIME_DIR/wssp.sock
 
 ### Prompter does not appear
 - Check `WAYLAND_DISPLAY` is set
-- Run `./target/debug/wss-prompter` directly to see GTK errors
-- Check daemon log for the exact command it tried: look for `Spawned wss-prompter`
+- Run `./target/debug/wssp-prompter` directly to see GTK errors
+- Check daemon log for the exact command it tried: look for `Spawned wssp-prompter`
 - Set `WSSP_PROMPTER_PATH` to an absolute path
 
 ### Vault decryption fails after a crash
