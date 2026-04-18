@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-04-18
+
+### Security
+- **Interactive password input**: all `wssp-cli` commands that accept a password now prompt
+  interactively with hidden input (`rpassword`) instead of reading from command-line arguments.
+  Passwords no longer appear in shell history or `ps` output. Affected commands: `init`,
+  `unlock`, `change-password`, `clear-password`, `set-password`.
+- New password commands (`init`, `change-password`, `set-password`) now require confirmation
+  before accepting a new password.
+
 ## [1.1.0] - 2026-04-18
 
 ### Added

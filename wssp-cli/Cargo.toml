@@ -1,6 +1,6 @@
 [package]
 name = "wssp-cli"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 
 [dependencies]
@@ -9,3 +9,4 @@ wssp-core = { path = "../wssp-core" }
 serde_json = "1.0"
 directories = { workspace = true }
 libc = "0.2"
+rpassword = "7"

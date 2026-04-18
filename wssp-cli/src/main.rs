@@ -24,7 +24,25 @@ fn vault_paths() -> VaultPaths {
     }
 }
 
-fn cmd_unlock(password: &str) {
+fn read_password(prompt: &str) -> String {
+    rpassword::prompt_password(prompt).unwrap_or_else(|e| {
+        eprintln!("Failed to read password: {}", e);
+        std::process::exit(1);
+    })
+}
+
+fn read_new_password(prompt: &str, confirm_prompt: &str) -> String {
+    loop {
+        let pw = read_password(prompt);
+        let confirm = read_password(confirm_prompt);
+        if pw == confirm {
+            return pw;
+        }
+        eprintln!("Passwords do not match, try again.");
+    }
+}
+
+fn cmd_unlock() {
     let runtime_dir = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let socket_path = PathBuf::from(runtime_dir).join("wssp.sock");
 
@@ -33,9 +51,11 @@ fn cmd_unlock(password: &str) {
         std::process::exit(1);
     }
 
+    let password = read_password("Vault password: ");
+
     match UnixStream::connect(&socket_path) {
         Ok(mut stream) => {
-            let response = PromptResponse { password: Some(password.to_string()) };
+            let response = PromptResponse { password: Some(password) };
             if let Ok(serialized) = serde_json::to_vec(&response) {
                 let _ = stream.write_all(&serialized);
                 println!("Password sent to daemon successfully.");
@@ -49,7 +69,7 @@ fn cmd_unlock(password: &str) {
     }
 }
 
-fn cmd_init(password: Option<&str>) {
+fn cmd_init(no_password: bool) {
     let VaultPaths { vault: vault_path, salt: salt_path, key: key_path } = vault_paths();
 
     if vault_path.exists() {
@@ -59,37 +79,33 @@ fn cmd_init(password: Option<&str>) {
 
     std::fs::create_dir_all(vault_path.parent().unwrap()).expect("Cannot create data directory");
 
-    match password {
-        None => {
-            // No-password mode: generate keyfile and empty vault.
-            let key = Vault::generate_key();
-            let key_hex = Vault::key_to_hex(&key);
-            std::fs::OpenOptions::new()
-                .write(true).create(true).truncate(true).mode(0o600)
-                .open(&key_path)
-                .and_then(|mut f| { f.write_all(key_hex.as_bytes())?; Ok(()) })
-                .expect("Cannot write vault.key");
-            let vault = Vault::new(vault_path, key);
-            vault.save(&wssp_core::vault::VaultData { collections: vec![] })
-                .expect("Cannot write vault.enc");
-            println!("Vault initialized in no-password mode (vault.key created).");
-        }
-        Some(pw) => {
-            // Password mode.
-            let salt = Vault::generate_salt();
-            let key = Vault::derive_key(pw, &salt).expect("Key derivation failed");
-            std::fs::write(&salt_path, &salt).expect("Cannot write vault.salt");
-            let vault = Vault::new(vault_path, key);
-            vault.save(&wssp_core::vault::VaultData { collections: vec![] })
-                .expect("Cannot write vault.enc");
-            println!("Vault initialized with password.");
-        }
+    if no_password {
+        let key = Vault::generate_key();
+        let key_hex = Vault::key_to_hex(&key);
+        std::fs::OpenOptions::new()
+            .write(true).create(true).truncate(true).mode(0o600)
+            .open(&key_path)
+            .and_then(|mut f| { f.write_all(key_hex.as_bytes())?; Ok(()) })
+            .expect("Cannot write vault.key");
+        let vault = Vault::new(vault_path, key);
+        vault.save(&wssp_core::vault::VaultData { collections: vec![] })
+            .expect("Cannot write vault.enc");
+        println!("Vault initialized in no-password mode (vault.key created).");
+    } else {
+        let pw = read_new_password("New vault password: ", "Confirm password: ");
+        let salt = Vault::generate_salt();
+        let key = Vault::derive_key(&pw, &salt).expect("Key derivation failed");
+        std::fs::write(&salt_path, &salt).expect("Cannot write vault.salt");
+        let vault = Vault::new(vault_path, key);
+        vault.save(&wssp_core::vault::VaultData { collections: vec![] })
+            .expect("Cannot write vault.enc");
+        println!("Vault initialized with password.");
     }
     println!("Start wss-daemon to begin using the vault:");
     println!("  systemctl --user start wss-daemon.service");
 }
 
-fn cmd_change_password(old_password: &str, new_password: &str) {
+fn cmd_change_password() {
     let VaultPaths { vault: vault_path, salt: salt_path, key: key_path } = vault_paths();
 
     if !vault_path.exists() {
@@ -102,12 +118,13 @@ fn cmd_change_password(old_password: &str, new_password: &str) {
         std::process::exit(1);
     }
 
-    // Decrypt with old password.
+    let old_password = read_password("Current password: ");
+
     let old_salt = match std::fs::read_to_string(&salt_path) {
         Ok(s) => s,
         Err(e) => { eprintln!("Cannot read salt file: {}", e); std::process::exit(1); }
     };
-    let old_key = match Vault::derive_key(old_password, old_salt.trim()) {
+    let old_key = match Vault::derive_key(&old_password, old_salt.trim()) {
         Ok(k) => k,
         Err(e) => { eprintln!("Key derivation failed: {}", e); std::process::exit(1); }
     };
@@ -120,9 +137,10 @@ fn cmd_change_password(old_password: &str, new_password: &str) {
         }
     };
 
-    // Re-encrypt with new password + fresh salt.
+    let new_password = read_new_password("New password: ", "Confirm new password: ");
+
     let new_salt = Vault::generate_salt();
-    let new_key = match Vault::derive_key(new_password, &new_salt) {
+    let new_key = match Vault::derive_key(&new_password, &new_salt) {
         Ok(k) => k,
         Err(e) => { eprintln!("Key derivation failed: {}", e); std::process::exit(1); }
     };
@@ -141,8 +159,7 @@ fn cmd_change_password(old_password: &str, new_password: &str) {
     println!("  systemctl --user restart wss-daemon.service");
 }
 
-/// Transition from password mode → keyfile mode (no password needed).
-fn cmd_clear_password(current_password: &str) {
+fn cmd_clear_password() {
     let VaultPaths { vault: vault_path, salt: salt_path, key: key_path } = vault_paths();
 
     if !vault_path.exists() {
@@ -154,12 +171,13 @@ fn cmd_clear_password(current_password: &str) {
         std::process::exit(1);
     }
 
-    // Decrypt with current password.
+    let current_password = read_password("Current password: ");
+
     let old_salt = match std::fs::read_to_string(&salt_path) {
         Ok(s) => s,
         Err(e) => { eprintln!("Cannot read salt file: {}", e); std::process::exit(1); }
     };
-    let old_key = match Vault::derive_key(current_password, old_salt.trim()) {
+    let old_key = match Vault::derive_key(&current_password, old_salt.trim()) {
         Ok(k) => k,
         Err(e) => { eprintln!("Key derivation failed: {}", e); std::process::exit(1); }
     };
@@ -172,7 +190,6 @@ fn cmd_clear_password(current_password: &str) {
         }
     };
 
-    // Generate random keyfile and re-encrypt.
     let new_key = Vault::generate_key();
     let key_hex = Vault::key_to_hex(&new_key);
     match std::fs::OpenOptions::new()
@@ -194,8 +211,7 @@ fn cmd_clear_password(current_password: &str) {
     println!("Restart wss-daemon: systemctl --user restart wss-daemon.service");
 }
 
-/// Transition from keyfile mode → password mode (reverse of clear-password).
-fn cmd_set_password(new_password: &str) {
+fn cmd_set_password() {
     let VaultPaths { vault: vault_path, salt: salt_path, key: key_path } = vault_paths();
 
     if !vault_path.exists() {
@@ -207,7 +223,6 @@ fn cmd_set_password(new_password: &str) {
         std::process::exit(1);
     }
 
-    // Read keyfile and decrypt.
     let hex = match std::fs::read_to_string(&key_path) {
         Ok(h) => h,
         Err(e) => { eprintln!("Cannot read vault.key: {}", e); std::process::exit(1); }
@@ -222,9 +237,10 @@ fn cmd_set_password(new_password: &str) {
         Err(e) => { eprintln!("Cannot decrypt vault: {}", e); std::process::exit(1); }
     };
 
-    // Re-encrypt with password.
+    let new_password = read_new_password("New password: ", "Confirm new password: ");
+
     let new_salt = Vault::generate_salt();
-    let new_key = match Vault::derive_key(new_password, &new_salt) {
+    let new_key = match Vault::derive_key(&new_password, &new_salt) {
         Ok(k) => k,
         Err(e) => { eprintln!("Key derivation failed: {}", e); std::process::exit(1); }
     };
@@ -280,12 +296,12 @@ fn cmd_reset(force: bool) {
 
 fn usage() {
     eprintln!("Usage:");
-    eprintln!("  wss-cli init <password>          # first-time setup with password");
-    eprintln!("  wss-cli init --no-password       # first-time setup without password (requires FDE)");
-    eprintln!("  wss-cli unlock <password>");
-    eprintln!("  wss-cli change-password <old-password> <new-password>");
-    eprintln!("  wss-cli clear-password <current-password>   # switch to no-password mode");
-    eprintln!("  wss-cli set-password <new-password>         # switch from no-password to password mode");
+    eprintln!("  wss-cli init                 # first-time setup with password (prompted)");
+    eprintln!("  wss-cli init --no-password   # first-time setup without password (requires FDE)");
+    eprintln!("  wss-cli unlock");
+    eprintln!("  wss-cli change-password");
+    eprintln!("  wss-cli clear-password       # switch to no-password mode");
+    eprintln!("  wss-cli set-password         # switch from no-password to password mode");
     eprintln!("  wss-cli reset [--force]");
 }
 
@@ -299,47 +315,19 @@ fn main() {
     match args[1].as_str() {
         "init" => {
             let no_password = args.get(2).map(|s| s == "--no-password").unwrap_or(false);
-            if no_password {
-                cmd_init(None);
-            } else if args.len() >= 3 {
-                cmd_init(Some(&args[2]));
-            } else {
-                eprintln!("Error: provide a password or --no-password");
-                eprintln!("  wss-cli init <password>");
-                eprintln!("  wss-cli init --no-password");
-                std::process::exit(1);
-            }
+            cmd_init(no_password);
         }
         "unlock" => {
-            if args.len() < 3 {
-                eprintln!("Error: password required");
-                std::process::exit(1);
-            }
-            cmd_unlock(&args[2]);
+            cmd_unlock();
         }
         "change-password" => {
-            if args.len() < 4 {
-                eprintln!("Error: both old and new passwords required");
-                eprintln!("Note: stop wss-daemon before changing the password.");
-                std::process::exit(1);
-            }
-            cmd_change_password(&args[2], &args[3]);
+            cmd_change_password();
         }
         "clear-password" => {
-            if args.len() < 3 {
-                eprintln!("Error: current password required");
-                eprintln!("Note: stop wss-daemon before clearing the password.");
-                std::process::exit(1);
-            }
-            cmd_clear_password(&args[2]);
+            cmd_clear_password();
         }
         "set-password" => {
-            if args.len() < 3 {
-                eprintln!("Error: new password required");
-                eprintln!("Note: stop wss-daemon before setting the password.");
-                std::process::exit(1);
-            }
-            cmd_set_password(&args[2]);
+            cmd_set_password();
         }
         "reset" => {
             let force = args.get(2).map(|s| s == "--force").unwrap_or(false);
