@@ -1,8 +1,0 @@
-[package]
-name = "wss-cli"
-version = "1.0.3"
-edition = "2021"
-
-[dependencies]
-wss-common = { path = "../wss-common" }
-serde_json = "1.0"

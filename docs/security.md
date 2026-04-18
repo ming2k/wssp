@@ -4,17 +4,20 @@
 
 | Threat | Mitigation |
 |--------|-----------|
-| Offline brute-force of `vault.enc` | Argon2id KDF; AEAD authentication tag rejects modified ciphertext |
+| Offline brute-force of `vault.enc` (password mode) | Argon2id KDF; AEAD authentication tag rejects modified ciphertext |
+| Offline decryption of `vault.enc` (no-password mode) | No protection without FDE — `vault.key` is on the same disk. Requires full-disk encryption (LUKS) at the OS layer. |
 | Secret exfiltration via D-Bus while unlocked | Session secrets are AES-128-CBC encrypted in transit; plaintext never leaves the daemon |
 | Session key recovery from process memory | AES session keys are stored in `Vec<u8>` with a custom `Drop` that calls `zeroize()` |
 | Concurrent unlock spawning multiple prompts | `is_unlocking` flag checked and set atomically under a single write lock |
 | Malformed DH public key (small-subgroup attack) | Client public key validated: `1 < key < p−1` per RFC 2409 before any computation |
-| PAM token lingering on disk | Token is read and deleted before any other work in `main()` |
+| PAM token lingering on disk | Token is read and deleted immediately; in screensaver path, deleted before unlock attempt |
 | Prompter process hijacking | Socket path is inside `$XDG_RUNTIME_DIR` (mode 0700, owned by user) |
+| Secret access after screen lock | logind `Session.Lock` signal evicts the vault key (`vault = None`); subsequent D-Bus requests trigger re-unlock |
 
-**Outside scope**: WSSP trusts the D-Bus session bus. Any process that can connect to the user's
-session bus and call `Unlock` can trigger a password prompt. This is an inherent property of the
-Secret Service API design — the same limitation applies to gnome-keyring and KWallet.
+**Outside scope**: WSSP trusts the D-Bus session bus. Any process that can connect to the
+user's session bus and call `Unlock` can trigger an unlock attempt (password prompt or
+keyfile read). This is an inherent property of the Secret Service API — the same limitation
+applies to gnome-keyring and KWallet.
 
 ## Cryptography
 
@@ -22,9 +25,10 @@ Secret Service API design — the same limitation applies to gnome-keyring and K
 
 | Layer | Algorithm | Parameters | Crate |
 |-------|-----------|------------|-------|
-| Key derivation | Argon2id | Default (19 MiB memory, 2 iterations, 1 thread) | `argon2` |
+| Key derivation (password mode) | Argon2id | Default (19 MiB memory, 2 iterations, 1 thread) | `argon2` |
+| Key (no-password mode) | OS-random 256-bit | Generated once via `OsRng`, stored in `vault.key` (mode 0600) | `rand` |
 | Vault encryption | XChaCha20-Poly1305 | 192-bit random nonce per save | `chacha20poly1305` |
-| Salt storage | Base64-encoded `SaltString` | OS-random via `OsRng` | `argon2` / `rand` |
+| Salt storage (password mode) | Base64-encoded `SaltString` | OS-random via `OsRng` | `argon2` / `rand` |
 
 **Vault file format**: `[24-byte nonce][ciphertext+16-byte Poly1305 tag]`
 
@@ -75,14 +79,22 @@ key only protects the D-Bus wire transport (loopback), not the vault at rest. Th
 XChaCha20-Poly1305 with a 256-bit key, which is not affected.
 
 ### PAM token is plaintext on disk
-`wssp-pam` writes the login password to `/run/user/<UID>/wssp-pam-token` (mode 0600). The file
-exists only between PAM `authenticate()` and `wssp-daemon` startup. If the daemon crashes before
-reading it, the file persists with a plaintext credential until the next login. A future
-improvement would use a kernel keyring or `memfd_create()` to avoid filesystem exposure.
+`wssp-pam` writes the login password (in password mode) to `/run/user/<UID>/wssp-pam-token`
+(mode 0600). The file exists only for the brief window between PAM `authenticate()` completing
+and the daemon reading it. If the daemon crashes before reading it, the file persists with a
+plaintext credential until the next login or screensaver unlock. A future improvement would
+use a kernel keyring or `memfd_create()` to avoid filesystem exposure entirely.
 
-### `lock()` is a no-op
-`Service.Lock()` currently returns success without actually evicting decrypted data from memory.
-A full implementation would clear the in-memory item secrets and require re-unlocking.
+### `vault.key` is plaintext on disk (no-password mode)
+In no-password mode the vault key is stored unencrypted in `vault.key` (mode 0600). Anyone
+with read access to the file can decrypt the vault. This mode is only appropriate when
+full-disk encryption (e.g. LUKS) provides the outer protection layer.
+
+### `Service.Lock()` D-Bus call is a no-op
+`Service.Lock()` currently returns success without evicting decrypted data from memory.
+Screen locking via the logind `Session.Lock` signal **does** evict the vault key and mark
+the vault as locked — but an explicit D-Bus `Lock` call from a client application has no
+effect. A full implementation would also zeroize in-memory item secrets on `Lock`.
 
 ### Portal (`org.freedesktop.portal.Secret`) is a stub
 The xdg-desktop-portal integration returns `0u32` rather than writing the master key to the
@@ -92,7 +104,8 @@ provided file descriptor. Full portal support requires `nix::unistd::write` with
 
 Any local user process on the same session bus can:
 - Call `OpenSession` to establish an encrypted channel
-- Call `Unlock` to trigger a password prompt (user must approve)
+- Call `Unlock` to trigger an unlock attempt (prompter in password mode; automatic keyfile
+  read in no-password mode — no user interaction required)
 - Enumerate collection/item paths once unlocked
 
 There is no per-application secret namespacing in the Secret Service API. If an application

@@ -47,8 +47,7 @@ WSSP_PROMPTER_PATH=./target/debug/wssp-prompter RUST_LOG=debug cargo run -p wssp
 |----------|--------|
 | `RUST_LOG` | Log verbosity: `error`, `warn`, `info`, `debug`, `trace` |
 | `WSSP_PROMPTER_PATH` | Absolute or relative path to `wssp-prompter` binary |
-| `WSSP_PASSWORD` | Skip GUI; used when `WAYLAND_DISPLAY` and `DISPLAY` are both unset |
-| `WSSP_PROMPT_MODE=create` | Tell `wssp-prompter` to show the "set new password" UI |
+| `WSSP_PASSWORD` | Skip GUI prompt; used when `WAYLAND_DISPLAY` and `DISPLAY` are both unset (headless) |
 
 ## Testing with `secret-tool`
 
@@ -61,7 +60,7 @@ cargo build && WSSP_PROMPTER_PATH=./target/debug/wssp-prompter ./target/debug/ws
 In another terminal:
 
 ```bash
-# Store a secret (triggers unlock prompt on first run)
+# Store a secret (vault auto-initializes in no-password mode on first run)
 secret-tool store --label="Test" service myapp username alice
 
 # Retrieve it
@@ -193,8 +192,17 @@ testing:
    echo -n "mypassword" > /run/user/$(id -u)/wssp-pam-token
    chmod 600 /run/user/$(id -u)/wssp-pam-token
    ```
-3. Start `wssp-daemon` — it should auto-unlock and log:
-   `PAM token found; attempting automatic unlock.`
+3. Start `wssp-daemon` — it should auto-unlock and log `PAM token found; attempting automatic unlock.`
+
+To test the screensaver re-unlock path (inotify watcher), lock the vault first then write the
+token file while the daemon is running:
+```bash
+# Lock (simulate screen lock)
+loginctl lock-session
+# Re-unlock (simulate swaylock dismissal)
+echo -n "mypassword" > /run/user/$(id -u)/wssp-pam-token && chmod 600 /run/user/$(id -u)/wssp-pam-token
+# Daemon should log: Vault re-unlocked via PAM token (screensaver dismissed).
+```
 
 To install the module (system-wide):
 ```bash
@@ -234,8 +242,12 @@ rm $XDG_RUNTIME_DIR/wssp.sock
 - Set `WSSP_PROMPTER_PATH` to an absolute path
 
 ### Vault decryption fails after a crash
-If Argon2id parameters changed between builds, the derived key changes. Delete the vault
-and start fresh:
+If Argon2id parameters changed between builds, the derived key changes. Reset the vault:
 ```bash
-rm -rf ~/.local/share/wssp/
+wssp-cli reset --force
+systemctl --user restart wssp-daemon.service
 ```
+
+### First run does not auto-initialize
+If `vault.enc` already exists from a previous install, the daemon will not re-initialize.
+Use `wssp-cli reset --force` to wipe and restart cleanly.
