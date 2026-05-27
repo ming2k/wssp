@@ -21,6 +21,9 @@ pub struct Collection {
 impl Collection {
     async fn delete(&self) -> zbus::fdo::Result<OwnedObjectPath> {
         info!("Delete collection: {}", self.id);
+        if !self.state.read().await.is_unlocked {
+            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+        }
         *self.is_deleted.write().await = true;
         self.state.read().await.sync_to_vault().await;
         Ok(ObjectPath::from_static_str("/").unwrap().into())
@@ -66,6 +69,9 @@ impl Collection {
 
         let decrypted_secret = {
             let state_guard = self.state.read().await;
+            if !state_guard.is_unlocked {
+                return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            }
             let session = state_guard
                 .sessions
                 .get(session_path)
@@ -116,6 +122,11 @@ impl Collection {
         self.state.read().await.sync_to_vault().await;
 
         Ok((owned_path, OwnedObjectPath::try_from("/").unwrap()))
+    }
+
+    #[zbus(property)]
+    async fn locked(&self) -> bool {
+        !self.state.read().await.is_unlocked
     }
 
     #[zbus(property)]

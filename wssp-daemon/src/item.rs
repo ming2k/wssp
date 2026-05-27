@@ -6,6 +6,10 @@ use tracing::info;
 use zbus::interface;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
+#[derive(serde::Serialize, serde::Deserialize, zbus::zvariant::Type)]
+#[zvariant(signature = "(oayays)")]
+pub struct SecretStruct(pub OwnedObjectPath, pub Vec<u8>, pub Vec<u8>, pub String);
+
 #[derive(Clone)]
 pub struct Item {
     pub id: String,
@@ -20,6 +24,9 @@ pub struct Item {
 impl Item {
     async fn delete(&self) -> zbus::fdo::Result<OwnedObjectPath> {
         info!("Delete item: {}", self.id);
+        if !self.state.read().await.is_unlocked {
+            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+        }
         *self.is_deleted.write().await = true;
         self.state.read().await.sync_to_vault().await;
         Ok(OwnedObjectPath::try_from("/").unwrap())
@@ -28,9 +35,12 @@ impl Item {
     async fn get_secret(
         &self,
         session_path: ObjectPath<'_>,
-    ) -> zbus::fdo::Result<(OwnedObjectPath, Vec<u8>, Vec<u8>, String)> {
+    ) -> zbus::fdo::Result<SecretStruct> {
         info!("GetSecret: {}", self.id);
         let state_guard = self.state.read().await;
+        if !state_guard.is_unlocked {
+            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+        }
         let session = state_guard
             .sessions
             .get(&OwnedObjectPath::from(session_path.clone()))
@@ -41,7 +51,7 @@ impl Item {
             .encrypt(&secret_raw)
             .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
 
-        Ok((session_path.into(), params, encrypted, "text/plain".into()))
+        Ok(SecretStruct(session_path.into(), params, encrypted, "text/plain".into()))
     }
 
     async fn set_secret(
@@ -49,9 +59,28 @@ impl Item {
         secret: (OwnedObjectPath, Vec<u8>, Vec<u8>, String),
     ) -> zbus::fdo::Result<()> {
         info!("SetSecret: {}", self.id);
-        *self.secret.write().await = secret.2;
+        let state_guard = self.state.read().await;
+        if !state_guard.is_unlocked {
+            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+        }
+        let session = state_guard
+            .sessions
+            .get(&secret.0)
+            .ok_or_else(|| zbus::fdo::Error::InvalidArgs("Invalid session".into()))?;
+
+        let decrypted_secret = session
+            .decrypt(&secret.1, &secret.2)
+            .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
+        drop(state_guard);
+
+        *self.secret.write().await = decrypted_secret;
         self.state.read().await.sync_to_vault().await;
         Ok(())
+    }
+
+    #[zbus(property)]
+    async fn locked(&self) -> bool {
+        !self.state.read().await.is_unlocked
     }
 
     #[zbus(property)]

@@ -88,6 +88,11 @@ impl Service {
     ) -> zbus::fdo::Result<(OwnedObjectPath, OwnedObjectPath)> {
         info!("CreateCollection: alias={}", alias);
 
+        let mut state = self.state.write().await;
+        if !state.is_unlocked {
+            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+        }
+
         let col_id = if alias.is_empty() {
             format!("c{}", generate_id())
         } else {
@@ -97,7 +102,6 @@ impl Service {
         let col_path = OwnedObjectPath::try_from(col_path_str.clone())
             .map_err(|e| zbus::fdo::Error::InvalidArgs(e.to_string()))?;
 
-        let mut state = self.state.write().await;
         if !state.collections.contains_key(&col_id) {
             let col = crate::collection::Collection {
                 id: col_id.clone(),
@@ -111,6 +115,7 @@ impl Service {
             if let Err(e) = server.at(col_path_str, col).await {
                 error!("Failed to register collection on D-Bus: {}", e);
             }
+            self.state.read().await.sync_to_vault().await;
         }
 
         Ok((col_path, OwnedObjectPath::try_from("/").unwrap()))

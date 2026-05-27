@@ -34,7 +34,14 @@ impl State {
     }
 
     pub async fn sync_to_vault(&self) {
-        let Some(vault) = &self.vault else { return };
+        if !self.is_unlocked {
+            tracing::warn!("sync_to_vault called while vault is locked. Ignoring.");
+            return;
+        }
+        let Some(vault) = &self.vault else {
+            tracing::warn!("sync_to_vault called but vault is missing. Ignoring.");
+            return;
+        };
         let mut collections = Vec::new();
         for (col_id, col) in &self.collections {
             if *col.is_deleted.read().await {
