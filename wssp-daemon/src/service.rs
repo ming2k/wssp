@@ -291,7 +291,7 @@ impl Service {
         items: Vec<ObjectPath<'_>>,
         session_path: ObjectPath<'_>,
     ) -> zbus::fdo::Result<
-        std::collections::HashMap<OwnedObjectPath, (OwnedObjectPath, Vec<u8>, Vec<u8>, String)>,
+        std::collections::HashMap<OwnedObjectPath, crate::item::SecretStruct>,
     > {
         debug!("GetSecrets called for {} items", items.len());
         let state = self.state.read().await;
@@ -333,7 +333,7 @@ impl Service {
                     if let Ok(p) = OwnedObjectPath::try_from(path_str.to_string()) {
                         result.insert(
                             p,
-                            (
+                            crate::item::SecretStruct(
                                 session_path.clone().into(),
                                 params,
                                 encrypted,
