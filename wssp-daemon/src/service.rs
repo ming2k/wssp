@@ -333,12 +333,12 @@ impl Service {
                     if let Ok(p) = OwnedObjectPath::try_from(path_str.to_string()) {
                         result.insert(
                             p,
-                            crate::item::SecretStruct(
-                                session_path.clone().into(),
-                                params,
-                                encrypted,
-                                "text/plain".into(),
-                            ),
+                            crate::item::SecretStruct {
+                                session: session_path.clone().into(),
+                                parameters: params,
+                                value: encrypted,
+                                content_type: "text/plain".into(),
+                            },
                         );
                     }
                 }

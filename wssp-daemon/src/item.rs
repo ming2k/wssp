@@ -7,8 +7,12 @@ use zbus::interface;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
 #[derive(serde::Serialize, serde::Deserialize, zbus::zvariant::Type)]
-#[zvariant(signature = "(oayays)")]
-pub struct SecretStruct(pub OwnedObjectPath, pub Vec<u8>, pub Vec<u8>, pub String);
+pub struct SecretStruct {
+    pub session: OwnedObjectPath,
+    pub parameters: Vec<u8>,
+    pub value: Vec<u8>,
+    pub content_type: String,
+}
 
 #[derive(Clone)]
 pub struct Item {
@@ -35,7 +39,7 @@ impl Item {
     async fn get_secret(
         &self,
         session_path: ObjectPath<'_>,
-    ) -> zbus::fdo::Result<SecretStruct> {
+    ) -> zbus::fdo::Result<(SecretStruct,)> {
         info!("GetSecret: {}", self.id);
         let state_guard = self.state.read().await;
         if !state_guard.is_unlocked {
@@ -51,7 +55,12 @@ impl Item {
             .encrypt(&secret_raw)
             .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))?;
 
-        Ok(SecretStruct(session_path.into(), params, encrypted, "text/plain".into()))
+        Ok((SecretStruct {
+            session: session_path.into(),
+            parameters: params,
+            value: encrypted,
+            content_type: "text/plain".into(),
+        },))
     }
 
     async fn set_secret(
