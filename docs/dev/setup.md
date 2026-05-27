@@ -41,8 +41,9 @@ cargo build -p wssp-daemon
 The daemon registers the well-known D-Bus name `org.freedesktop.secrets`. If you are running a desktop environment (like GNOME or KDE), you likely already have `gnome-keyring` or `kwallet` running, which will conflict.
 
 ### Approach A: Isolated D-Bus Session (Recommended)
-This approach prevents WSSP from interfering with your actual desktop passwords.
+This approach is perfect for testing how third-party applications (like `agy cli`, Chrome, or VS Code) interact with WSSP. It creates a "sandbox" D-Bus, ensuring your tests don't pollute your real system passwords, and your system's keyring doesn't intercept the test app.
 
+**Terminal 1 (The Sandbox Daemon):**
 ```bash
 # 1. Start a throw-away session bus and export its address
 eval $(dbus-launch --sh-syntax)
@@ -50,10 +51,16 @@ echo "Session bus: $DBUS_SESSION_BUS_ADDRESS"
 
 # 2. Run the daemon in this shell
 RUST_LOG=debug cargo run -p wssp-daemon
+```
 
-# 3. In another terminal, export the same DBUS_SESSION_BUS_ADDRESS to test it
-export DBUS_SESSION_BUS_ADDRESS="..."
-secret-tool store --label="Test" service myapp username alice
+**Terminal 2 (The 3rd-Party App):**
+```bash
+# 1. Export the EXACT SAME address printed in Terminal 1
+export DBUS_SESSION_BUS_ADDRESS="unix:abstract=/tmp/dbus-...,guid=..."
+
+# 2. Run your third-party application. It will now talk EXCLUSIVELY to your dev daemon.
+# For example:
+agy cli auth login
 ```
 
 ### Approach B: Replacing your Desktop Keyring
