@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-05-27
+
+### Fixed
+- **`Item.GetSecret` D-Bus signature**: zbus 5.x was flattening the returned `SecretStruct`
+  into four separate OUT args (`oayays`) instead of one struct OUT arg (`(oayays)`), causing
+  libsecret/`secret-tool` to reject the reply (`returned (oayays), expected ((oayays))`) and
+  godbus-based clients to fail with `dbus.Store: length mismatch`. Third-party apps fell back
+  to file storage and lost their tokens across restarts. Wrapped the return in a 1-tuple
+  `(SecretStruct,)` so zbus emits a single struct OUT arg per the Secret Service spec.
+- **Vault locking enforcement**: `is_unlocked` is now checked on all mutating operations
+  (`create_collection`, `create_item`, `delete`, `set_secret`) and reads (`get_secret`,
+  `delete`) to prevent silent data loss or unauthorized access while locked.
+- **`sync_to_vault`** now returns early with a warning if called while locked or with no
+  vault present, instead of writing partial state.
+- **`Item.SetSecret`** now decrypts the incoming D-Bus `Secret` ciphertext before storing
+  it in memory; previously the encrypted bytes were saved verbatim, corrupting the secret.
+- **`Item.GetSecrets`** (batch read) now serializes secrets via `SecretStruct` so the map
+  values have the correct `(oayays)` struct signature.
+
+### Added
+- Required `Locked` property on the D-Bus `Collection` and `Item` interfaces, per the
+  freedesktop Secret Service spec.
+
 ## [1.1.1] - 2026-04-18
 
 ### Security
