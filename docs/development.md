@@ -1,31 +1,6 @@
 # Development Guide
 
-## Prerequisites
-
-### System libraries (Debian/Ubuntu)
-```bash
-sudo apt install libgtk-4-dev libadwaita-1-dev libdbus-1-dev pkg-config
-```
-
-### Rust toolchain
-```bash
-rustup update stable
-```
-
-### Useful tools
-```bash
-sudo apt install busctl secret-tool d-feet
-```
-
-## Building
-
-```bash
-# Full workspace
-cargo build
-
-# Daemon only (faster iteration)
-cargo build -p wssp-daemon
-```
+*For initial environment setup and building instructions, please see [Developer Setup](dev/setup.md).*
 
 ## Running the Daemon
 
