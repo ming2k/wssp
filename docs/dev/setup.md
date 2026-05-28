@@ -4,18 +4,28 @@ This guide will walk you through setting up your local environment to develop, c
 
 ## 1. Prerequisites
 
-### System Libraries (Debian/Ubuntu)
-WSSP relies on D-Bus for IPC, and GTK4/Libadwaita for the prompter UI.
-```bash
-sudo apt update
-sudo apt install libgtk-4-dev libadwaita-1-dev libdbus-1-dev pkg-config
-```
+### System Libraries
+
+WSSP relies on D-Bus for IPC, GTK4 / Libadwaita for the prompter UI, and PAM for the
+auto-unlock module.
+
+| Distribution | Install command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install libgtk-4-dev libadwaita-1-dev libdbus-1-dev libpam0g-dev pkg-config` |
+| Arch Linux | `sudo pacman -S gtk4 libadwaita dbus pam pkgconf` |
+| Fedora | `sudo dnf install gtk4-devel libadwaita-devel dbus-devel pam-devel pkgconf` |
 
 ### Useful Debugging Tools
+
 To manually interact with the D-Bus daemon and monitor messages:
-```bash
-sudo apt install busctl secret-tool d-feet dbus-monitor
-```
+
+| Distribution | Install command |
+|---|---|
+| Debian / Ubuntu | `sudo apt install systemd libsecret-tools d-feet dbus-monitor` |
+| Arch Linux | `sudo pacman -S systemd libsecret d-feet` |
+| Fedora | `sudo dnf install systemd libsecret d-feet dbus-tools` |
+
+`busctl` ships with systemd; `secret-tool` ships with libsecret.
 
 ### Rust Toolchain
 Ensure you have the latest stable Rust toolchain installed:
@@ -38,7 +48,20 @@ cargo build -p wssp-daemon
 
 ## 3. Running the Daemon for Development
 
-The daemon registers the well-known D-Bus name `org.freedesktop.secrets`. If you are running a desktop environment (like GNOME or KDE), you likely already have `gnome-keyring` or `kwallet` running, which will conflict.
+The daemon registers the well-known D-Bus name `org.freedesktop.secrets`. Only one process
+per session can own this name, so before either approach below you must stop **every**
+existing owner — `gnome-keyring`, `kwallet`, *and* an installed `wssp-daemon.service`:
+
+```bash
+systemctl --user stop wssp-daemon.service 2>/dev/null
+pkill -x gnome-keyring-daemon 2>/dev/null
+pkill -x kwalletd5 2>/dev/null
+busctl --user status org.freedesktop.secrets 2>&1 | grep -q PID= && \
+  echo "WARNING: something still owns the bus name — find and kill it"
+```
+
+For diagnosing why something keeps re-acquiring the name, see
+[../how-to/troubleshoot-dbus-conflicts.md](../how-to/troubleshoot-dbus-conflicts.md).
 
 ### Approach A: Isolated D-Bus Session (Recommended)
 This approach is perfect for testing how third-party applications (like `agy cli`, Chrome, or VS Code) interact with WSSP. It creates a "sandbox" D-Bus, ensuring your tests don't pollute your real system passwords, and your system's keyring doesn't intercept the test app.
@@ -82,7 +105,47 @@ WSSP_PROMPTER_PATH=./target/debug/wssp-prompter RUST_LOG=debug cargo run -p wssp
 | `WSSP_PROMPTER_PATH` | Absolute or relative path to the compiled `wssp-prompter` binary. Required for the daemon to spawn the unlock UI. |
 | `WSSP_PASSWORD` | Used for headless/IoT testing. Skips the GUI prompt when `WAYLAND_DISPLAY` and `DISPLAY` are both unset. |
 
-## 5. Next Steps
+## 5. Cleanup After a Dev Session
 
-- For testing cryptographic logic or D-Bus interactions, see the testing section in `docs/dev/development.md`.
-- To understand the D-Bus API implementation details, read `docs/explanation/freedesktop-spec.md`.
+Two artifacts from typical dev workflows commonly leak into your production session and
+silently take over `org.freedesktop.secrets` on next login. Remove them before you log out
+of the dev session:
+
+```bash
+# 1. Per-user D-Bus activation file pointing at target/{debug,release}/.
+#    WSSP itself never creates this; if you created one to test third-party apps without
+#    setting DBUS_SESSION_BUS_ADDRESS, remove it now.
+rm -f ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
+
+# 2. Any hand-installed user-level systemd unit shadowing the packaged one.
+ls ~/.config/systemd/user/*.service 2>/dev/null | xargs -r grep -l 'BusName=org.freedesktop.secrets'
+# If anything is listed, disable + remove it, then daemon-reload.
+
+# 3. If you renamed the daemon binary at any point (historic example: wss-daemon → wssp-daemon),
+#    purge stale build artifacts so dbus-daemon can never fork-exec them:
+cargo clean
+```
+
+A full diagnostic procedure for "the wrong binary is answering" is in
+[../how-to/troubleshoot-dbus-conflicts.md](../how-to/troubleshoot-dbus-conflicts.md).
+
+## 6. Running the Test Suite
+
+```bash
+# Unit tests across the workspace
+cargo test
+
+# Single crate (faster iteration on cryptography or D-Bus serialization)
+cargo test -p wssp-core
+cargo test -p wssp-daemon
+```
+
+End-to-end D-Bus testing is currently done manually with `busctl`, `secret-tool`, and
+`dbus-monitor` against an isolated session bus — see `docs/dev/development.md` for the
+recipes.
+
+## 7. Next Steps
+
+- Testing strategy and D-Bus debugging recipes: `docs/dev/development.md`.
+- D-Bus API implementation details and spec compliance: `docs/explanation/freedesktop-spec.md`.
+- Component layout and service-activation rationale: `docs/explanation/architecture.md`.

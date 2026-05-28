@@ -28,7 +28,28 @@ lightweight, headless-friendly drop-in replacement for gnome-keyring and KWallet
 cargo build --release
 ```
 
-### 2. Install binaries and service
+### 2. Pre-flight: free the `org.freedesktop.secrets` D-Bus name
+
+Only one process can own `org.freedesktop.secrets` per session. Check who currently owns it
+and disable any other Secret Service provider before installing WSSP:
+
+```bash
+busctl --user status org.freedesktop.secrets   # shows owning PID, or fails if no owner
+
+# Disable common conflicting providers (run only the ones that apply to you):
+systemctl --user disable --now gnome-keyring-daemon.service gcr-ssh-agent.socket 2>/dev/null
+systemctl --user mask  gnome-keyring-daemon.service 2>/dev/null   # GNOME / login keyring
+systemctl --user disable --now kwallet5.service kwalletd5.service 2>/dev/null
+
+# Remove any stale per-user D-Bus activation file that points the bus name elsewhere:
+rm -f ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
+```
+
+If you skip this step the WSSP systemd unit will fail to load with
+*"Two services allocated for the same bus name org.freedesktop.secrets"*. See
+[docs/how-to/troubleshoot-dbus-conflicts.md](docs/how-to/troubleshoot-dbus-conflicts.md).
+
+### 3. Install binaries and service
 
 ```bash
 sudo cp target/release/wssp-daemon /usr/bin/
@@ -40,6 +61,19 @@ systemctl --user daemon-reload
 systemctl --user enable --now wssp-daemon.service
 ```
 
+### 4. Verify the daemon is the one answering
+
+```bash
+# Owning PID should match wssp-daemon.service MainPID:
+busctl --user status org.freedesktop.secrets | grep ^PID=
+systemctl --user show wssp-daemon.service --property=MainPID
+
+# Round-trip a secret to confirm libsecret clients reach WSSP:
+secret-tool store --label=wssp-smoke smoke yes <<< ok && \
+  secret-tool lookup smoke yes && \
+  secret-tool clear  smoke yes
+```
+
 On first start the daemon automatically initializes a no-password vault. If you want
 password protection instead, stop the daemon and initialize explicitly:
 
@@ -49,9 +83,21 @@ wssp-cli init <your-password>
 systemctl --user start wssp-daemon.service
 ```
 
-### 3. PAM integration (recommended)
+### 5. PAM integration (optional)
 
-Enables automatic unlock at login and re-unlock after screensaver dismissal.
+**Purpose.** The PAM module exists for one reason: to remove the manual unlock prompt.
+It captures your login password as PAM authenticates you, hands it to `wssp-daemon`, and
+the daemon derives the vault key from it. The same hook re-runs when you dismiss
+`swaylock`, so the vault re-unlocks automatically after the screensaver.
+
+**You do not need it if** any of the following holds:
+- You run a no-password (keyfile) vault — the daemon unlocks itself at startup.
+- You are happy to unlock manually via `wssp-cli unlock <password>` or the GUI prompter.
+- You are deploying headless and set `WSSP_PASSWORD=` in the unit file.
+
+**Install only if** you want zero-friction login + screensaver unlock for a
+password-protected vault, and you accept that your login password is briefly written to
+`/run/user/<uid>/wssp-pam-token` (tmpfs, mode `0600`, deleted on read).
 
 ```bash
 # Build and install the PAM module
@@ -64,8 +110,8 @@ echo "auth optional pam_wssp.so" | sudo tee -a /etc/pam.d/system-login
 echo "auth optional pam_wssp.so" | sudo tee -a /etc/pam.d/swaylock
 ```
 
-See [docs/unlock-strategies.md](docs/unlock-strategies.md) for the full setup guide and
-security trade-offs.
+For Debian/Ubuntu/Fedora PAM stack paths, no-password mode trade-offs, and headless setup,
+see [docs/how-to/configure-unlock.md](docs/how-to/configure-unlock.md).
 
 ## Vault Management
 
