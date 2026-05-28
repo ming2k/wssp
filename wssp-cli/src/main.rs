@@ -303,6 +303,7 @@ fn usage() {
     eprintln!("  wss-cli clear-password       # switch to no-password mode");
     eprintln!("  wss-cli set-password         # switch from no-password to password mode");
     eprintln!("  wss-cli reset [--force]");
+    eprintln!("  wss-cli --version | -V       # print version and exit");
 }
 
 fn main() {
@@ -313,6 +314,10 @@ fn main() {
     }
 
     match args[1].as_str() {
+        "--version" | "-V" => {
+            println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+            return;
+        }
         "init" => {
             let no_password = args.get(2).map(|s| s == "--no-password").unwrap_or(false);
             cmd_init(no_password);

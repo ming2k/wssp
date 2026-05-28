@@ -25,6 +25,11 @@ use directories::ProjectDirs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    if std::env::args().nth(1).as_deref().is_some_and(|a| a == "--version" || a == "-V") {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
     tracing_subscriber::fmt::init();
     info!("Starting wss-daemon...");
 

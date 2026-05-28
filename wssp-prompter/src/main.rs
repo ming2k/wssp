@@ -8,6 +8,11 @@ use std::path::PathBuf;
 use wssp_common::ipc::PromptResponse;
 
 fn main() -> gtk::glib::ExitCode {
+    if std::env::args().nth(1).as_deref().is_some_and(|a| a == "--version" || a == "-V") {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+        return gtk::glib::ExitCode::SUCCESS;
+    }
+
     let app = Application::builder()
         .application_id("com.hihusky.wssp.Prompter")
         .build();
