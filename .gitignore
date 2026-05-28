@@ -9,3 +9,20 @@ Cargo.lock
 *.enc
 *.salt
 /run/user/*/wssp-pam-token
+
+# AI tooling workspace (per-user state, not shared config)
+.claude/
+.gemini/
+.antigravitycli/
+.codegraph/
+
+# AI assistant instruction files (per-developer, not shared)
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md
+
+# Editor / AI tooling configs
+/opencode.jsonc
+
+# Local debug/test scripts at repo root
+/test_*.sh
