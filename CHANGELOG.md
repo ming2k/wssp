@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2026-06-19
+
+### Fixed
+- **`CreateItem` missing replace logic**: `CreateItem` now correctly honors the `replace` argument. If `replace` is true, existing items with the same attributes are deleted before inserting the new item. This prevents token accumulation in the vault.
+- **`SearchItems` double array bug**: Fixed an issue where `Service::SearchItems` cloned identical matching items into both the unlocked and locked returned D-Bus arrays, violating the DBus Secret Service Spec.
+- **Removed dead code**: Removed an unnecessary return statement in `wssp-cli/src/main.rs`.
+
 ## [1.1.2] - 2026-05-27
 
 ### Fixed

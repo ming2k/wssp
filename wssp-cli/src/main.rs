@@ -316,7 +316,6 @@ fn main() {
     match args[1].as_str() {
         "--version" | "-V" => {
             println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
-            return;
         }
         "init" => {
             let no_password = args.get(2).map(|s| s == "--no-password").unwrap_or(false);

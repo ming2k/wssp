@@ -59,7 +59,7 @@ impl Collection {
         #[zbus(object_server)] server: &zbus::ObjectServer,
         properties: HashMap<&str, Value<'_>>,
         secret: (OwnedObjectPath, Vec<u8>, Vec<u8>, String),
-        _replace: bool,
+        replace: bool,
     ) -> zbus::fdo::Result<(OwnedObjectPath, OwnedObjectPath)> {
         info!("CreateItem in collection: {}", self.id);
 
@@ -99,6 +99,19 @@ impl Collection {
             for (k, v) in dict.iter() {
                 if let (Value::Str(k_str), Value::Str(v_str)) = (k, v) {
                     attributes.insert(k_str.as_str().to_string(), v_str.as_str().to_string());
+                }
+            }
+        }
+
+        if replace {
+            let items = self.items.read().await;
+            for item in items.values() {
+                if *item.is_deleted.read().await {
+                    continue;
+                }
+                let item_attrs = item.attributes.read().await;
+                if *item_attrs == attributes {
+                    *item.is_deleted.write().await = true;
                 }
             }
         }

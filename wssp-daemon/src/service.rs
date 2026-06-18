@@ -152,7 +152,7 @@ impl Service {
             }
         }
 
-        Ok((matched.clone(), matched))
+        Ok((matched, Vec::new()))
     }
 
     async fn unlock(
