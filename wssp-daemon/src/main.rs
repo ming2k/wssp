@@ -17,15 +17,19 @@ mod vault;
 
 use service::load_vault;
 use state::State;
-use unlock::{apply_vault_data, try_unlock_with_keyfile};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use unlock::{apply_vault_data, try_unlock_with_keyfile};
 
 use directories::ProjectDirs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    if std::env::args().nth(1).as_deref().is_some_and(|a| a == "--version" || a == "-V") {
+    if std::env::args()
+        .nth(1)
+        .as_deref()
+        .is_some_and(|a| a == "--version" || a == "-V")
+    {
         println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
@@ -33,8 +37,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
     info!("Starting wss-daemon...");
 
-    let proj_dirs =
-        ProjectDirs::from("org", "wssp", "wssp").ok_or("Could not determine project directories")?;
+    let proj_dirs = ProjectDirs::from("org", "wssp", "wssp")
+        .ok_or("Could not determine project directories")?;
     std::fs::create_dir_all(proj_dirs.data_dir())?;
     let vault_path = proj_dirs.data_dir().join("vault.enc");
     let salt_path = proj_dirs.data_dir().join("vault.salt");
@@ -52,13 +56,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Ensure "login" collection always exists
     {
         let mut st = state.write().await;
-        st.collections.entry("login".into()).or_insert_with(|| collection::Collection {
-            id: "login".into(),
-            label: Arc::new(RwLock::new("Login".into())),
-            items: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            is_deleted: Arc::new(RwLock::new(false)),
-            state: state.clone(),
-        });
+        st.collections
+            .entry("login".into())
+            .or_insert_with(|| collection::Collection {
+                id: "login".into(),
+                label: Arc::new(RwLock::new("Login".into())),
+                items: Arc::new(RwLock::new(std::collections::HashMap::new())),
+                is_deleted: Arc::new(RwLock::new(false)),
+                state: state.clone(),
+            });
     }
 
     // Attempt automatic unlock at startup.
@@ -67,7 +73,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             // Keyfile mode: no password needed, read key directly.
             info!("Keyfile mode detected; attempting automatic unlock.");
             match try_unlock_with_keyfile(&key_path, &vault_path, state.clone()).await {
-                Ok(n) => info!("Vault auto-unlocked via keyfile. {} collection(s) loaded.", n),
+                Ok(n) => info!(
+                    "Vault auto-unlocked via keyfile. {} collection(s) loaded.",
+                    n
+                ),
                 Err(e) => error!("Keyfile unlock failed: {}", e),
             }
         } else {
@@ -109,7 +118,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             error!("Failed to create vault.key: {}", e);
         } else {
             let vault = wssp_core::vault::Vault::new(vault_path.clone(), key);
-            match vault.save_new(&wssp_core::vault::VaultData { collections: vec![] }) {
+            match vault.save_new(&wssp_core::vault::VaultData {
+                collections: vec![],
+            }) {
                 Ok(_) => {
                     match try_unlock_with_keyfile(&key_path, &vault_path, state.clone()).await {
                         Ok(_) => info!("Vault initialized and unlocked in no-password mode."),
@@ -146,10 +157,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
 
             for (item_id, item) in col.items.read().await.iter() {
-                let item_path = format!(
-                    "/org/freedesktop/secrets/collection/{}/{}",
-                    col_id, item_id
-                );
+                let item_path =
+                    format!("/org/freedesktop/secrets/collection/{}/{}", col_id, item_id);
                 if let Ok(p) = zbus::zvariant::OwnedObjectPath::try_from(item_path) {
                     let _ = server.at(p, item.clone()).await;
                 }
@@ -176,4 +185,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
     }
 }
-

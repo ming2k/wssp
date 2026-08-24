@@ -29,21 +29,22 @@ impl Item {
     async fn delete(&self) -> zbus::fdo::Result<OwnedObjectPath> {
         info!("Delete item: {}", self.id);
         if !self.state.read().await.is_unlocked {
-            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            return Err(zbus::fdo::Error::Failed(
+                "org.freedesktop.Secret.Error.IsLocked".into(),
+            ));
         }
         *self.is_deleted.write().await = true;
         self.state.read().await.sync_to_vault().await;
         Ok(OwnedObjectPath::try_from("/").unwrap())
     }
 
-    async fn get_secret(
-        &self,
-        session_path: ObjectPath<'_>,
-    ) -> zbus::fdo::Result<(SecretStruct,)> {
+    async fn get_secret(&self, session_path: ObjectPath<'_>) -> zbus::fdo::Result<(SecretStruct,)> {
         info!("GetSecret: {}", self.id);
         let state_guard = self.state.read().await;
         if !state_guard.is_unlocked {
-            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            return Err(zbus::fdo::Error::Failed(
+                "org.freedesktop.Secret.Error.IsLocked".into(),
+            ));
         }
         let session = state_guard
             .sessions
@@ -70,7 +71,9 @@ impl Item {
         info!("SetSecret: {}", self.id);
         let state_guard = self.state.read().await;
         if !state_guard.is_unlocked {
-            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            return Err(zbus::fdo::Error::Failed(
+                "org.freedesktop.Secret.Error.IsLocked".into(),
+            ));
         }
         let session = state_guard
             .sessions

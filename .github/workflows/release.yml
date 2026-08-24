@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Release Binary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libdbus-1-dev \
+            libpam0g-dev \
+            pkg-config
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binaries
+        run: cargo build --workspace --release
+
+      - name: Package artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="$(uname -m)"
+          DIST="wssp-${VERSION}-linux-${ARCH}"
+          mkdir -p "${DIST}/bin" "${DIST}/lib" "${DIST}/systemd/user" "${DIST}/systemd/portals" "${DIST}/dbus"
+          cp target/release/wssp-daemon "${DIST}/bin/"
+          cp target/release/wssp-prompter "${DIST}/bin/"
+          cp target/release/wssp-cli "${DIST}/bin/"
+          cp target/release/libpam_wssp.so "${DIST}/lib/"
+          cp systemd/user/* "${DIST}/systemd/user/" 2>/dev/null || true
+          cp systemd/portals/* "${DIST}/systemd/portals/" 2>/dev/null || true
+          cp dbus/* "${DIST}/dbus/" 2>/dev/null || true
+          cp README.md CHANGELOG.md "${DIST}/" 2>/dev/null || true
+          tar -czvf "${DIST}.tar.gz" "${DIST}"
+          sha256sum "${DIST}.tar.gz" > "${DIST}.tar.gz.sha256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            wssp-*.tar.gz
+            wssp-*.tar.gz.sha256
+          generate_release_notes: true

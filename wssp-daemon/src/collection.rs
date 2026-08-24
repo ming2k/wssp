@@ -22,7 +22,9 @@ impl Collection {
     async fn delete(&self) -> zbus::fdo::Result<OwnedObjectPath> {
         info!("Delete collection: {}", self.id);
         if !self.state.read().await.is_unlocked {
-            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            return Err(zbus::fdo::Error::Failed(
+                "org.freedesktop.Secret.Error.IsLocked".into(),
+            ));
         }
         *self.is_deleted.write().await = true;
         self.state.read().await.sync_to_vault().await;
@@ -33,7 +35,11 @@ impl Collection {
         &self,
         attributes: HashMap<&str, &str>,
     ) -> zbus::fdo::Result<Vec<OwnedObjectPath>> {
-        debug!("Collection::SearchItems called for collection: {} with {} attributes", self.id, attributes.len());
+        debug!(
+            "Collection::SearchItems called for collection: {} with {} attributes",
+            self.id,
+            attributes.len()
+        );
         let items = self.items.read().await;
         let mut matched = Vec::new();
         for (id, item) in items.iter() {
@@ -70,7 +76,9 @@ impl Collection {
         let decrypted_secret = {
             let state_guard = self.state.read().await;
             if !state_guard.is_unlocked {
-                return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+                return Err(zbus::fdo::Error::Failed(
+                    "org.freedesktop.Secret.Error.IsLocked".into(),
+                ));
             }
             let session = state_guard
                 .sessions
@@ -125,7 +133,10 @@ impl Collection {
             state: self.state.clone(),
         };
 
-        self.items.write().await.insert(item_id.clone(), item.clone());
+        self.items
+            .write()
+            .await
+            .insert(item_id.clone(), item.clone());
 
         if let Err(e) = server.at(owned_path.clone(), item).await {
             error!("Failed to register item on D-Bus: {}", e);

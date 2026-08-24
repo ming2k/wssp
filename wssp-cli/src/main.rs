@@ -1,14 +1,12 @@
+use argon2::Params;
+use directories::ProjectDirs;
 use std::env;
 use std::fs::File;
 use std::io::{self, Write};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
-use argon2::Params;
-use directories::ProjectDirs;
+use std::path::{Path, PathBuf};
 use wssp_common::ipc::PromptResponse;
-use wssp_core::vault::{
-    atomic_replace, decode_kdf, encode_kdf, Vault, VaultData,
-};
+use wssp_core::vault::{atomic_replace, decode_kdf, encode_kdf, Vault, VaultData};
 use zeroize::Zeroize;
 
 struct VaultPaths {
@@ -19,14 +17,14 @@ struct VaultPaths {
 }
 
 fn vault_paths() -> VaultPaths {
-    let proj_dirs = ProjectDirs::from("org", "wssp", "wssp")
-        .expect("Could not determine project directories");
+    let proj_dirs =
+        ProjectDirs::from("org", "wssp", "wssp").expect("Could not determine project directories");
     let d = proj_dirs.data_dir();
     VaultPaths {
         vault: d.join("vault.enc"),
-        salt:  d.join("vault.salt"),
-        kdf:   d.join("vault.kdf"),
-        key:   d.join("vault.key"),
+        salt: d.join("vault.salt"),
+        kdf: d.join("vault.kdf"),
+        key: d.join("vault.key"),
     }
 }
 
@@ -53,9 +51,9 @@ fn read_new_password(prompt: &str, confirm_prompt: &str) -> String {
 
 fn load_password_vault(
     password: &str,
-    vault_path: &PathBuf,
-    salt_path: &PathBuf,
-    kdf_path: &PathBuf,
+    vault_path: &Path,
+    salt_path: &Path,
+    kdf_path: &Path,
 ) -> Result<(Vault, VaultData), Box<dyn std::error::Error>> {
     let key = if kdf_path.exists() {
         let kdf_bytes = std::fs::read(kdf_path)?;
@@ -68,7 +66,7 @@ fn load_password_vault(
         return Err("No vault.kdf or vault.salt found".into());
     };
 
-    let vault = Vault::new(vault_path.clone(), key);
+    let vault = Vault::new(vault_path.to_path_buf(), key);
     let data = vault.load()?;
     Ok((vault, data))
 }
@@ -86,7 +84,9 @@ fn cmd_unlock() {
 
     match UnixStream::connect(&socket_path) {
         Ok(mut stream) => {
-            let response = PromptResponse { password: Some(password.clone()) };
+            let response = PromptResponse {
+                password: Some(password.clone()),
+            };
             if let Ok(serialized) = serde_json::to_vec(&response) {
                 let _ = stream.write_all(&serialized);
                 println!("Password sent to daemon successfully.");
@@ -102,7 +102,12 @@ fn cmd_unlock() {
 }
 
 fn cmd_init(no_password: bool) {
-    let VaultPaths { vault: vault_path, salt: salt_path, kdf: kdf_path, key: key_path } = vault_paths();
+    let VaultPaths {
+        vault: vault_path,
+        salt: salt_path,
+        kdf: kdf_path,
+        key: key_path,
+    } = vault_paths();
 
     if vault_path.exists() {
         eprintln!("Vault already exists. Use change-password or clear-password instead.");
@@ -116,14 +121,18 @@ fn cmd_init(no_password: bool) {
         let key_hex = Vault::key_to_hex(&key);
         atomic_replace(&key_path, key_hex.as_bytes()).expect("Cannot write vault.key");
         let vault = Vault::new(vault_path, key);
-        vault.save_new(&VaultData { collections: vec![] })
+        vault
+            .save_new(&VaultData {
+                collections: vec![],
+            })
             .expect("Cannot write vault.enc");
         println!("Vault initialized in no-password mode (vault.key created).");
     } else {
         let mut pw = read_new_password("New vault password: ", "Confirm password: ");
         let salt = Vault::generate_salt();
         let params = Params::default();
-        let key = Vault::derive_key_with_params(&pw, &salt, &params).expect("Key derivation failed");
+        let key =
+            Vault::derive_key_with_params(&pw, &salt, &params).expect("Key derivation failed");
         pw.zeroize();
 
         let kdf_bytes = encode_kdf(&params, &salt).expect("Cannot encode KDF configuration");
@@ -131,7 +140,10 @@ fn cmd_init(no_password: bool) {
         atomic_replace(&salt_path, salt.as_bytes()).expect("Cannot write vault.salt");
 
         let vault = Vault::new(vault_path, key);
-        vault.save_new(&VaultData { collections: vec![] })
+        vault
+            .save_new(&VaultData {
+                collections: vec![],
+            })
             .expect("Cannot write vault.enc");
         println!("Vault initialized with password (vault.kdf created).");
     }
@@ -140,10 +152,18 @@ fn cmd_init(no_password: bool) {
 }
 
 fn cmd_change_password() {
-    let VaultPaths { vault: vault_path, salt: salt_path, kdf: kdf_path, key: key_path } = vault_paths();
+    let VaultPaths {
+        vault: vault_path,
+        salt: salt_path,
+        kdf: kdf_path,
+        key: key_path,
+    } = vault_paths();
 
     if !vault_path.exists() {
-        eprintln!("No vault found at {:?}. Initialize it by running wssp-daemon first.", vault_path);
+        eprintln!(
+            "No vault found at {:?}. Initialize it by running wssp-daemon first.",
+            vault_path
+        );
         std::process::exit(1);
     }
 
@@ -153,14 +173,15 @@ fn cmd_change_password() {
     }
 
     let mut old_password = read_password("Current password: ");
-    let (_old_vault, data) = match load_password_vault(&old_password, &vault_path, &salt_path, &kdf_path) {
-        Ok(res) => res,
-        Err(e) => {
-            old_password.zeroize();
-            eprintln!("Failed to decrypt vault — wrong current password? ({})", e);
-            std::process::exit(1);
-        }
-    };
+    let (_old_vault, data) =
+        match load_password_vault(&old_password, &vault_path, &salt_path, &kdf_path) {
+            Ok(res) => res,
+            Err(e) => {
+                old_password.zeroize();
+                eprintln!("Failed to decrypt vault — wrong current password? ({})", e);
+                std::process::exit(1);
+            }
+        };
     old_password.zeroize();
 
     let mut new_password = read_new_password("New password: ", "Confirm new password: ");
@@ -211,7 +232,12 @@ fn cmd_change_password() {
 }
 
 fn cmd_clear_password() {
-    let VaultPaths { vault: vault_path, salt: salt_path, kdf: kdf_path, key: key_path } = vault_paths();
+    let VaultPaths {
+        vault: vault_path,
+        salt: salt_path,
+        kdf: kdf_path,
+        key: key_path,
+    } = vault_paths();
 
     if !vault_path.exists() {
         eprintln!("No vault found. Initialize it by running wssp-daemon first.");
@@ -223,14 +249,15 @@ fn cmd_clear_password() {
     }
 
     let mut current_password = read_password("Current password: ");
-    let (_old_vault, data) = match load_password_vault(&current_password, &vault_path, &salt_path, &kdf_path) {
-        Ok(res) => res,
-        Err(e) => {
-            current_password.zeroize();
-            eprintln!("Failed to decrypt vault — wrong password? ({})", e);
-            std::process::exit(1);
-        }
-    };
+    let (_old_vault, data) =
+        match load_password_vault(&current_password, &vault_path, &salt_path, &kdf_path) {
+            Ok(res) => res,
+            Err(e) => {
+                current_password.zeroize();
+                eprintln!("Failed to decrypt vault — wrong password? ({})", e);
+                std::process::exit(1);
+            }
+        };
     current_password.zeroize();
 
     let new_key = Vault::generate_key();
@@ -254,7 +281,12 @@ fn cmd_clear_password() {
 }
 
 fn cmd_set_password() {
-    let VaultPaths { vault: vault_path, salt: salt_path, kdf: kdf_path, key: key_path } = vault_paths();
+    let VaultPaths {
+        vault: vault_path,
+        salt: salt_path,
+        kdf: kdf_path,
+        key: key_path,
+    } = vault_paths();
 
     if !vault_path.exists() {
         eprintln!("No vault found. Initialize it by running wssp-daemon first.");
@@ -267,16 +299,25 @@ fn cmd_set_password() {
 
     let hex = match std::fs::read_to_string(&key_path) {
         Ok(h) => h,
-        Err(e) => { eprintln!("Cannot read vault.key: {}", e); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Cannot read vault.key: {}", e);
+            std::process::exit(1);
+        }
     };
     let old_key = match Vault::key_from_hex(hex.trim()) {
         Ok(k) => k,
-        Err(e) => { eprintln!("Invalid vault.key: {}", e); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Invalid vault.key: {}", e);
+            std::process::exit(1);
+        }
     };
     let old_vault = Vault::new(vault_path.clone(), old_key);
     let data = match old_vault.load() {
         Ok(d) => d,
-        Err(e) => { eprintln!("Cannot decrypt vault: {}", e); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("Cannot decrypt vault: {}", e);
+            std::process::exit(1);
+        }
     };
 
     let mut new_password = read_new_password("New password: ", "Confirm new password: ");
@@ -327,7 +368,12 @@ fn cmd_reset(force: bool) {
         }
     }
 
-    let VaultPaths { vault: vault_path, salt: salt_path, kdf: kdf_path, key: key_path } = vault_paths();
+    let VaultPaths {
+        vault: vault_path,
+        salt: salt_path,
+        kdf: kdf_path,
+        key: key_path,
+    } = vault_paths();
     let parent = vault_path.parent().unwrap();
     let mut deleted = false;
     if vault_path.exists() {

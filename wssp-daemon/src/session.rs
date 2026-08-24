@@ -106,8 +106,7 @@ const DH_G: u32 = 2;
 pub fn calculate_dh_shared_secret(
     client_pub: &[u8],
 ) -> Result<(Vec<u8>, Vec<u8>), Box<dyn std::error::Error + Send + Sync>> {
-    let p = BigUint::parse_bytes(DH_P.as_bytes(), 16)
-        .ok_or("Failed to parse DH prime")?;
+    let p = BigUint::parse_bytes(DH_P.as_bytes(), 16).ok_or("Failed to parse DH prime")?;
     let g = BigUint::from(DH_G);
 
     let mut rng = rand::thread_rng();
@@ -188,7 +187,10 @@ mod tests {
         // Python/libsecret manual HKDF
         let reference = python_hkdf(&shared);
 
-        assert_eq!(ours, reference, "HKDF output must match libsecret reference");
+        assert_eq!(
+            ours, reference,
+            "HKDF output must match libsecret reference"
+        );
     }
 
     #[test]
@@ -207,8 +209,7 @@ mod tests {
         }
 
         // Server processes client's public key
-        let (server_pub_bytes, server_key) =
-            calculate_dh_shared_secret(&client_pub_bytes).unwrap();
+        let (server_pub_bytes, server_key) = calculate_dh_shared_secret(&client_pub_bytes).unwrap();
 
         // Client computes key from server's public key
         let server_pub_bn = BigUint::from_bytes_be(&server_pub_bytes);
@@ -221,6 +222,10 @@ mod tests {
         }
         let client_key = python_hkdf(&shared_bytes);
 
-        assert_eq!(server_key.as_slice(), &client_key, "DH keys must match on both sides");
+        assert_eq!(
+            server_key.as_slice(),
+            &client_key,
+            "DH keys must match on both sides"
+        );
     }
 }

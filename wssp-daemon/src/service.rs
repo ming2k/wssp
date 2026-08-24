@@ -45,9 +45,8 @@ impl Service {
                 let client_pub: Vec<u8> = input
                     .try_into()
                     .map_err(|_| WssDaemonError::InvalidArgs("Invalid DH input".into()))?;
-                let (server_pub, sym_key) =
-                    crate::session::calculate_dh_shared_secret(&client_pub)
-                        .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
+                let (server_pub, sym_key) = crate::session::calculate_dh_shared_secret(&client_pub)
+                    .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
                 (
                     zbus::zvariant::Value::from(server_pub),
                     crate::session::SessionAlgorithm::Dh(sym_key),
@@ -57,17 +56,15 @@ impl Service {
         };
 
         let session_id = generate_id();
-        let session_path = OwnedObjectPath::try_from(format!(
-            "/org/freedesktop/secrets/session/s{}",
-            session_id
-        ))
-        .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
+        let session_path =
+            OwnedObjectPath::try_from(format!("/org/freedesktop/secrets/session/s{}", session_id))
+                .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
 
         let session = Arc::new(crate::session::Session {
             id: session_path.clone(),
             algorithm: algo,
         });
-        
+
         // 关键修复：解引用 Arc 并克隆 Session 对象进行注册
         server.at(session_path.clone(), (*session).clone()).await?;
 
@@ -90,7 +87,9 @@ impl Service {
 
         let mut state = self.state.write().await;
         if !state.is_unlocked {
-            return Err(zbus::fdo::Error::Failed("org.freedesktop.Secret.Error.IsLocked".into()));
+            return Err(zbus::fdo::Error::Failed(
+                "org.freedesktop.Secret.Error.IsLocked".into(),
+            ));
         }
 
         let col_id = if alias.is_empty() {
@@ -185,11 +184,9 @@ impl Service {
             generate_id()
         };
 
-        let prompt_path = OwnedObjectPath::try_from(format!(
-            "/org/freedesktop/secrets/prompt/p{}",
-            prompt_id
-        ))
-        .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
+        let prompt_path =
+            OwnedObjectPath::try_from(format!("/org/freedesktop/secrets/prompt/p{}", prompt_id))
+                .map_err(|e| WssDaemonError::InvalidArgs(e.to_string()))?;
 
         let prompt = crate::prompt::Prompt {
             id: prompt_path.as_str().to_string(),
@@ -202,13 +199,19 @@ impl Service {
         let state_clone = self.state.clone();
         let conn_clone = conn.clone();
         let prompt_path_clone = prompt_path.clone();
-        let objects_to_unlock: Vec<OwnedObjectPath> =
-            objects.iter().map(|o| OwnedObjectPath::from(o.clone())).collect();
+        let objects_to_unlock: Vec<OwnedObjectPath> = objects
+            .iter()
+            .map(|o| OwnedObjectPath::from(o.clone()))
+            .collect();
 
         tokio::spawn(async move {
             let (vault_path, salt_path, kdf_path) = {
                 let st = state_clone.read().await;
-                (st.vault_path.clone(), st.salt_path.clone(), st.kdf_path.clone())
+                (
+                    st.vault_path.clone(),
+                    st.salt_path.clone(),
+                    st.kdf_path.clone(),
+                )
             };
 
             let mut dismissed = true;
@@ -294,9 +297,8 @@ impl Service {
         &self,
         items: Vec<ObjectPath<'_>>,
         session_path: ObjectPath<'_>,
-    ) -> zbus::fdo::Result<
-        std::collections::HashMap<OwnedObjectPath, crate::item::SecretStruct>,
-    > {
+    ) -> zbus::fdo::Result<std::collections::HashMap<OwnedObjectPath, crate::item::SecretStruct>>
+    {
         debug!("GetSecrets called for {} items", items.len());
         let state = self.state.read().await;
         let session = state
@@ -362,11 +364,8 @@ impl Service {
             alias
         };
         if state.collections.contains_key(target) {
-            OwnedObjectPath::try_from(format!(
-                "/org/freedesktop/secrets/collection/{}",
-                target
-            ))
-            .map_err(|e| zbus::fdo::Error::InvalidArgs(e.to_string()))
+            OwnedObjectPath::try_from(format!("/org/freedesktop/secrets/collection/{}", target))
+                .map_err(|e| zbus::fdo::Error::InvalidArgs(e.to_string()))
         } else {
             Ok(OwnedObjectPath::try_from("/").unwrap())
         }
@@ -383,10 +382,9 @@ impl Service {
         let mut paths = Vec::new();
         for (id, col) in state.collections.iter() {
             if !*col.is_deleted.read().await {
-                if let Ok(p) = OwnedObjectPath::try_from(format!(
-                    "/org/freedesktop/secrets/collection/{}",
-                    id
-                )) {
+                if let Ok(p) =
+                    OwnedObjectPath::try_from(format!("/org/freedesktop/secrets/collection/{}", id))
+                {
                     paths.push(p);
                 }
             }
@@ -416,7 +414,9 @@ pub fn load_vault(
         atomic_replace(salt_path, salt.as_bytes())?;
 
         let vault = Vault::new(vault_path.to_path_buf(), key);
-        let data = VaultData { collections: vec![] };
+        let data = VaultData {
+            collections: vec![],
+        };
         vault.save_new(&data)?;
         return Ok((vault, data));
     }

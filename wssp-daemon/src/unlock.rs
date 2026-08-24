@@ -19,11 +19,7 @@ pub async fn try_unlock_with_keyfile(
     Ok(n)
 }
 
-pub async fn apply_vault_data(
-    vault: Vault,
-    data: &VaultData,
-    state: Arc<RwLock<State>>,
-) {
+pub async fn apply_vault_data(vault: Vault, data: &VaultData, state: Arc<RwLock<State>>) {
     let cols = build_collections(data, state.clone());
     let mut st = state.write().await;
     for (col_id, col) in cols {

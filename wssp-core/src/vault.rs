@@ -1,8 +1,5 @@
 use crate::error::{CoreError, Result};
-use argon2::{
-    password_hash::SaltString,
-    Algorithm, Argon2, Params, Version,
-};
+use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, Version};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
     XChaCha20Poly1305, XNonce,
@@ -182,7 +179,9 @@ impl Vault {
     pub fn key_from_hex(hex: &str) -> Result<[u8; 32]> {
         let hex = hex.trim();
         if hex.len() != 64 {
-            return Err(CoreError::Crypto("vault.key must be 64 hex chars (32 bytes)".into()));
+            return Err(CoreError::Crypto(
+                "vault.key must be 64 hex chars (32 bytes)".into(),
+            ));
         }
         let mut arr = [0u8; 32];
         for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
@@ -324,7 +323,10 @@ pub fn atomic_replace(path: &Path, contents: &[u8]) -> std::io::Result<()> {
         )
     })?;
     let file_name = path.file_name().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "vault path must name a file")
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "vault path must name a file",
+        )
     })?;
 
     let temporary_path = temporary_path(parent, file_name);
@@ -357,7 +359,10 @@ pub fn atomic_create(path: &Path, contents: &[u8]) -> std::io::Result<()> {
         )
     })?;
     let file_name = path.file_name().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "vault path must name a file")
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "vault path must name a file",
+        )
     })?;
     let temporary_path = temporary_path(parent, file_name);
     let result = (|| {
@@ -440,7 +445,9 @@ mod tests {
         let key = Vault::generate_key();
         let vault = Vault::new(vault_path.clone(), key);
 
-        let data = VaultData { collections: vec![] };
+        let data = VaultData {
+            collections: vec![],
+        };
         vault.save(&data).expect("Save failed");
 
         // Tamper with a byte in the ciphertext
@@ -469,4 +476,3 @@ mod tests {
         let _ = std::fs::remove_file(file_path);
     }
 }
-

@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use std::sync::Arc;
 use futures_util::StreamExt;
 use inotify::{Inotify, WatchMask};
+use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 

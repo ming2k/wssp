@@ -8,7 +8,11 @@ use std::path::PathBuf;
 use wssp_common::ipc::PromptResponse;
 
 fn main() -> gtk::glib::ExitCode {
-    if std::env::args().nth(1).as_deref().is_some_and(|a| a == "--version" || a == "-V") {
+    if std::env::args()
+        .nth(1)
+        .as_deref()
+        .is_some_and(|a| a == "--version" || a == "-V")
+    {
         println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
         return gtk::glib::ExitCode::SUCCESS;
     }
@@ -122,7 +126,9 @@ fn send_password(password: String) {
 
     match UnixStream::connect(&socket_path) {
         Ok(mut stream) => {
-            let response = PromptResponse { password: Some(password) };
+            let response = PromptResponse {
+                password: Some(password),
+            };
             if let Ok(serialized) = serde_json::to_vec(&response) {
                 let _ = stream.write_all(&serialized);
             }

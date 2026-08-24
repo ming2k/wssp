@@ -27,9 +27,7 @@ pub async fn request_password() -> Result<String, Box<dyn std::error::Error>> {
             info!("Headless environment detected. Unlocking via WSSP_PASSWORD.");
             return Ok(pwd);
         } else {
-            return Err(
-                "Headless environment detected, but WSSP_PASSWORD is not set.".into(),
-            );
+            return Err("Headless environment detected, but WSSP_PASSWORD is not set.".into());
         }
     }
 
@@ -58,7 +56,10 @@ pub async fn request_password() -> Result<String, Box<dyn std::error::Error>> {
     match Command::new(prompter_path).spawn() {
         Ok(child) => info!("Spawned wssp-prompter with PID: {}", child.id()),
         Err(e) => {
-            error!("Failed to spawn wssp-prompter: {}. Set WSSP_PROMPTER_PATH if needed.", e);
+            error!(
+                "Failed to spawn wssp-prompter: {}. Set WSSP_PROMPTER_PATH if needed.",
+                e
+            );
             return Err(e.into());
         }
     }
@@ -76,5 +77,7 @@ pub async fn request_password() -> Result<String, Box<dyn std::error::Error>> {
     let _ = std::fs::remove_file(&socket_path);
 
     let response: PromptResponse = serde_json::from_slice(&buf)?;
-    response.password.ok_or_else(|| "No password provided (user cancelled)".into())
+    response
+        .password
+        .ok_or_else(|| "No password provided (user cancelled)".into())
 }

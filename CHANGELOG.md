@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.4] - 2026-08-24
+
+### Security & Hardening
+- **Crash-safe atomic persistence**: Implemented `atomic_replace` with tempfile sync, atomic rename, and directory fsync across vault operations.
+- **Argon2id KDF parameter persistence**: Persist explicit Argon2id parameters in `vault.kdf` sidecar with legacy migration and crash fallback.
+- **In-memory secret protection**: Applied `mlock` and `MADV_DONTDUMP` to sensitive master key buffers in `wssp-core` and secure zeroization on drop.
+- **Two-phase staged re-keying**: Introduced `.next` staging protocol in `wssp-cli` for crash-resilient password changes and mode transitions.
+- **Interactive credential zeroization**: Ensured CLI interactive password buffers are zeroized immediately after prompt completion.
+- **Session lock eviction**: Daemon now clears in-memory item secrets and locks the vault upon receiving `org.freedesktop.login1.Session` `Lock` signals.
+- **Per-application secret derivation**: Implemented per-app HKDF secret derivation for xdg-desktop-portal Secret isolation.
+- **PAM lifecycle hardening**: Moved unlock token planting to `pam_sm_setcred` / `pam_sm_open_session` for reliable session initialization.
+- **D-Bus service activation**: Added standard D-Bus session activation configuration (`org.freedesktop.secrets.service`).
+
 ## [1.1.3] - 2026-06-19
 
 ### Fixed

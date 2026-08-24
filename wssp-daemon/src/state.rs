@@ -21,7 +21,12 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(vault_path: PathBuf, salt_path: PathBuf, kdf_path: PathBuf, key_path: PathBuf) -> Self {
+    pub fn new(
+        vault_path: PathBuf,
+        salt_path: PathBuf,
+        kdf_path: PathBuf,
+        key_path: PathBuf,
+    ) -> Self {
         Self {
             collections: HashMap::new(),
             sessions: HashMap::new(),
@@ -120,7 +125,12 @@ mod tests {
         let salt_path = PathBuf::from("/tmp/vault.salt");
         let kdf_path = PathBuf::from("/tmp/vault.kdf");
         let key_path = PathBuf::from("/tmp/vault.key");
-        let state = State::new(vault_path.clone(), salt_path.clone(), kdf_path.clone(), key_path);
+        let state = State::new(
+            vault_path.clone(),
+            salt_path.clone(),
+            kdf_path.clone(),
+            key_path,
+        );
 
         assert_eq!(state.vault_path, vault_path);
         assert_eq!(state.salt_path, salt_path);
