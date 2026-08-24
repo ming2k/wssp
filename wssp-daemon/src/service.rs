@@ -206,18 +206,18 @@ impl Service {
             objects.iter().map(|o| OwnedObjectPath::from(o.clone())).collect();
 
         tokio::spawn(async move {
-            let (vault_path, salt_path) = {
+            let (vault_path, salt_path, kdf_path) = {
                 let st = state_clone.read().await;
-                (st.vault_path.clone(), st.salt_path.clone())
+                (st.vault_path.clone(), st.salt_path.clone(), st.kdf_path.clone())
             };
 
             let mut dismissed = true;
 
-            if let Ok(password) = crate::ipc::request_password()
+            if let Ok(mut password) = crate::ipc::request_password()
                 .await
                 .map_err(|e| error!("Failed to get password: {}", e))
             {
-                match load_vault(&password, &vault_path, &salt_path, false) {
+                match load_vault(&password, &vault_path, &salt_path, &kdf_path, false) {
                     Ok((vault, data)) => {
                         let cols = build_collections(&data, state_clone.clone());
                         let server = conn_clone.object_server();
@@ -253,8 +253,12 @@ impl Service {
                         dismissed = false;
                         info!("Vault unlocked successfully.");
                     }
-                    Err(e) => error!("Vault unlock failed: {}", e),
+                    Err(e) => {
+                        error!("Failed to unlock vault with provided password: {}", e);
+                    }
                 }
+                use zeroize::Zeroize;
+                password.zeroize();
             }
 
             {
@@ -392,26 +396,100 @@ impl Service {
 }
 
 /// Derive the vault key and load (or initialise) vault data.
-/// On first run (`is_initial`), writes a fresh salt and returns empty data.
+/// On first run (`is_initial`), writes a fresh `vault.kdf` & `vault.salt` and returns empty data.
 pub fn load_vault(
     password: &str,
     vault_path: &std::path::Path,
     salt_path: &std::path::Path,
+    kdf_path: &std::path::Path,
     is_initial: bool,
 ) -> Result<(Vault, VaultData), Box<dyn std::error::Error + Send + Sync>> {
+    use argon2::Params;
+    use wssp_core::vault::{atomic_replace, decode_kdf, encode_kdf};
+
     if is_initial {
         let salt = Vault::generate_salt();
-        std::fs::write(salt_path, &salt)?;
-        let key = Vault::derive_key(password, &salt)?;
+        let params = Params::default();
+        let key = Vault::derive_key_with_params(password, &salt, &params)?;
+        let kdf_bytes = encode_kdf(&params, &salt)?;
+        atomic_replace(kdf_path, &kdf_bytes)?;
+        atomic_replace(salt_path, salt.as_bytes())?;
+
         let vault = Vault::new(vault_path.to_path_buf(), key);
         let data = VaultData { collections: vec![] };
-        vault.save(&data)?; // 必须保存，否则下次启动会找不到文件
+        vault.save_new(&data)?;
         return Ok((vault, data));
     }
 
-    let salt = std::fs::read_to_string(salt_path)?;
-    let key = Vault::derive_key(password, salt.trim())?;
-    let vault = Vault::new(vault_path.to_path_buf(), key);
-    let data = vault.load()?;
-    Ok((vault, data))
+    let parent = vault_path.parent().unwrap_or(std::path::Path::new("."));
+    let kdf_next = parent.join("vault.kdf.next");
+    let salt_next = parent.join("vault.salt.next");
+
+    // 1. Try authoritative vault.kdf
+    if kdf_path.exists() {
+        if let Ok(bytes) = std::fs::read(kdf_path) {
+            if let Ok((params, salt)) = decode_kdf(&bytes) {
+                if let Ok(key) = Vault::derive_key_with_params(password, &salt, &params) {
+                    let vault = Vault::new(vault_path.to_path_buf(), key);
+                    if let Ok(data) = vault.load() {
+                        let _ = std::fs::remove_file(&kdf_next);
+                        let _ = std::fs::remove_file(&salt_next);
+                        return Ok((vault, data));
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Try staged vault.kdf.next (from an interrupted re-key)
+    if kdf_next.exists() {
+        if let Ok(bytes) = std::fs::read(&kdf_next) {
+            if let Ok((params, salt)) = decode_kdf(&bytes) {
+                if let Ok(key) = Vault::derive_key_with_params(password, &salt, &params) {
+                    let vault = Vault::new(vault_path.to_path_buf(), key);
+                    if let Ok(data) = vault.load() {
+                        let _ = std::fs::rename(&kdf_next, kdf_path);
+                        let _ = std::fs::rename(&salt_next, salt_path);
+                        return Ok((vault, data));
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Try legacy vault.salt
+    if salt_path.exists() {
+        if let Ok(salt) = std::fs::read_to_string(salt_path) {
+            let params = Params::default();
+            if let Ok(key) = Vault::derive_key_with_params(password, salt.trim(), &params) {
+                let vault = Vault::new(vault_path.to_path_buf(), key);
+                if let Ok(data) = vault.load() {
+                    // Backfill vault.kdf for future forward-compatibility
+                    if let Ok(kdf_bytes) = encode_kdf(&params, salt.trim()) {
+                        let _ = atomic_replace(kdf_path, &kdf_bytes);
+                    }
+                    return Ok((vault, data));
+                }
+            }
+        }
+    }
+
+    // 4. Try staged vault.salt.next
+    if salt_next.exists() {
+        if let Ok(salt) = std::fs::read_to_string(&salt_next) {
+            let params = Params::default();
+            if let Ok(key) = Vault::derive_key_with_params(password, salt.trim(), &params) {
+                let vault = Vault::new(vault_path.to_path_buf(), key);
+                if let Ok(data) = vault.load() {
+                    let _ = std::fs::rename(&salt_next, salt_path);
+                    if let Ok(kdf_bytes) = encode_kdf(&params, salt.trim()) {
+                        let _ = atomic_replace(kdf_path, &kdf_bytes);
+                    }
+                    return Ok((vault, data));
+                }
+            }
+        }
+    }
+
+    Err("Failed to decrypt vault with provided password".into())
 }

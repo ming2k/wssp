@@ -38,12 +38,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all(proj_dirs.data_dir())?;
     let vault_path = proj_dirs.data_dir().join("vault.enc");
     let salt_path = proj_dirs.data_dir().join("vault.salt");
+    let kdf_path = proj_dirs.data_dir().join("vault.kdf");
     let key_path = proj_dirs.data_dir().join("vault.key");
     info!("Vault path: {:?}", vault_path);
 
     let state = Arc::new(RwLock::new(State::new(
         vault_path.clone(),
         salt_path.clone(),
+        kdf_path.clone(),
         key_path.clone(),
     )));
 
@@ -76,10 +78,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             if pam_token_path.exists() {
                 match std::fs::read_to_string(&pam_token_path) {
-                    Ok(password) => {
+                    Ok(mut password) => {
                         let _ = std::fs::remove_file(&pam_token_path);
                         info!("PAM token found; attempting automatic unlock.");
-                        match load_vault(&password, &vault_path, &salt_path, false) {
+                        match load_vault(&password, &vault_path, &salt_path, &kdf_path, false) {
                             Ok((vault, data)) => {
                                 apply_vault_data(vault, &data, state.clone()).await;
                                 info!(
@@ -89,6 +91,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             }
                             Err(e) => error!("PAM auto-unlock failed: {}", e),
                         }
+                        use zeroize::Zeroize;
+                        password.zeroize();
                     }
                     Err(e) => error!("Failed to read PAM token: {}", e),
                 }
@@ -98,32 +102,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     } else {
         // First run: auto-initialize in no-password mode.
-        // Users who need password protection can run: wssp-cli set-password <password>
         info!("No vault found; initializing in no-password mode (keyfile).");
         let key = wssp_core::vault::Vault::generate_key();
         let key_hex = wssp_core::vault::Vault::key_to_hex(&key);
-        match std::fs::OpenOptions::new()
-            .write(true).create(true).truncate(true)
-            .open(&key_path)
-        {
-            Ok(mut f) => {
-                use std::io::Write;
-                use std::os::unix::fs::PermissionsExt;
-                let _ = f.write_all(key_hex.as_bytes());
-                let _ = std::fs::set_permissions(&key_path,
-                    std::fs::Permissions::from_mode(0o600));
-                let vault = wssp_core::vault::Vault::new(vault_path.clone(), key);
-                match vault.save(&wssp_core::vault::VaultData { collections: vec![] }) {
-                    Ok(_) => {
-                        match try_unlock_with_keyfile(&key_path, &vault_path, state.clone()).await {
-                            Ok(_) => info!("Vault initialized and unlocked in no-password mode."),
-                            Err(e) => error!("Auto-init unlock failed: {}", e),
-                        }
+        if let Err(e) = wssp_core::vault::atomic_replace(&key_path, key_hex.as_bytes()) {
+            error!("Failed to create vault.key: {}", e);
+        } else {
+            let vault = wssp_core::vault::Vault::new(vault_path.clone(), key);
+            match vault.save_new(&wssp_core::vault::VaultData { collections: vec![] }) {
+                Ok(_) => {
+                    match try_unlock_with_keyfile(&key_path, &vault_path, state.clone()).await {
+                        Ok(_) => info!("Vault initialized and unlocked in no-password mode."),
+                        Err(e) => error!("Auto-init unlock failed: {}", e),
                     }
-                    Err(e) => error!("Failed to initialize vault: {}", e),
                 }
+                Err(e) => error!("Failed to initialize vault: {}", e),
             }
-            Err(e) => error!("Failed to create vault.key: {}", e),
         }
     }
 
@@ -174,7 +168,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Screensaver integration: lock vault on screen lock, re-unlock on screensaver dismissal.
     logind::spawn_lock_listener(state.clone());
-    logind::spawn_pam_watcher(state.clone(), vault_path, salt_path);
+    logind::spawn_pam_watcher(state.clone(), vault_path, salt_path, kdf_path);
 
     info!("wss-daemon running.");
 

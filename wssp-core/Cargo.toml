@@ -18,3 +18,4 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
+libc = { workspace = true }

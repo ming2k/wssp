@@ -61,8 +61,8 @@ async fn run_lock_listener(state: Arc<RwLock<State>>) -> Result<(), Box<dyn std:
         let mut st = state.write().await;
         st.is_unlocked = false;
         st.vault = None;
-        // Note: in-memory item secrets are not zeroized here (see security.md Known Limitations).
-        // The vault key is gone, so no new writes can be committed to disk.
+        st.collections.clear();
+        info!("Vault locked and in-memory secrets purged.");
     }
 
     Ok(())
@@ -73,9 +73,10 @@ pub fn spawn_pam_watcher(
     state: Arc<RwLock<State>>,
     vault_path: PathBuf,
     salt_path: PathBuf,
+    kdf_path: PathBuf,
 ) {
     tokio::spawn(async move {
-        if let Err(e) = run_pam_watcher(state, vault_path, salt_path).await {
+        if let Err(e) = run_pam_watcher(state, vault_path, salt_path, kdf_path).await {
             error!("PAM token watcher stopped: {}", e);
         }
     });
@@ -85,7 +86,10 @@ async fn run_pam_watcher(
     state: Arc<RwLock<State>>,
     vault_path: PathBuf,
     _salt_path: PathBuf,
+    _kdf_path: PathBuf,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    use zeroize::Zeroize;
+
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
         .unwrap_or_else(|_| format!("/run/user/{}", unsafe { libc::getuid() }));
 
@@ -109,13 +113,14 @@ async fn run_pam_watcher(
             continue;
         }
 
-        let (should_unlock, key_path, vault_path2, salt_path2) = {
+        let (should_unlock, key_path, vault_path2, salt_path2, kdf_path2) = {
             let st = state.read().await;
             (
                 !st.is_unlocked && vault_path.exists(),
                 st.key_path.clone(),
                 st.vault_path.clone(),
                 st.salt_path.clone(),
+                st.kdf_path.clone(),
             )
         };
         if !should_unlock {
@@ -134,9 +139,9 @@ async fn run_pam_watcher(
         } else {
             // Password mode: use token content as credential.
             match std::fs::read_to_string(&token_path) {
-                Ok(password) => {
+                Ok(mut password) => {
                     let _ = std::fs::remove_file(&token_path);
-                    match load_vault(&password, &vault_path2, &salt_path2, false) {
+                    match load_vault(&password, &vault_path2, &salt_path2, &kdf_path2, false) {
                         Ok((vault, data)) => {
                             apply_vault_data(vault, &data, state.clone()).await;
                             info!("Vault re-unlocked via PAM token (screensaver dismissed).");
@@ -146,11 +151,13 @@ async fn run_pam_watcher(
                             e
                         ),
                     }
+                    password.zeroize();
                 }
                 Err(e) => error!("Failed to read PAM token: {}", e),
             }
         }
-        let _ = salt_path2; // used only in password mode branch above
+        let _ = salt_path2;
+        let _ = kdf_path2;
     }
 
     Ok(())

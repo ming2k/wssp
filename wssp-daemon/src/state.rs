@@ -16,11 +16,12 @@ pub struct State {
     pub vault: Option<Vault>,
     pub vault_path: PathBuf,
     pub salt_path: PathBuf,
+    pub kdf_path: PathBuf,
     pub key_path: PathBuf,
 }
 
 impl State {
-    pub fn new(vault_path: PathBuf, salt_path: PathBuf, key_path: PathBuf) -> Self {
+    pub fn new(vault_path: PathBuf, salt_path: PathBuf, kdf_path: PathBuf, key_path: PathBuf) -> Self {
         Self {
             collections: HashMap::new(),
             sessions: HashMap::new(),
@@ -29,6 +30,7 @@ impl State {
             vault: None,
             vault_path,
             salt_path,
+            kdf_path,
             key_path,
         }
     }
@@ -116,11 +118,13 @@ mod tests {
     fn test_state_initialization() {
         let vault_path = PathBuf::from("/tmp/vault.enc");
         let salt_path = PathBuf::from("/tmp/vault.salt");
+        let kdf_path = PathBuf::from("/tmp/vault.kdf");
         let key_path = PathBuf::from("/tmp/vault.key");
-        let state = State::new(vault_path.clone(), salt_path.clone(), key_path);
+        let state = State::new(vault_path.clone(), salt_path.clone(), kdf_path.clone(), key_path);
 
         assert_eq!(state.vault_path, vault_path);
         assert_eq!(state.salt_path, salt_path);
+        assert_eq!(state.kdf_path, kdf_path);
         assert_eq!(state.key_path, PathBuf::from("/tmp/vault.key"));
         assert!(!state.is_unlocked);
         assert!(!state.is_unlocking);

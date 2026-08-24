@@ -33,3 +33,4 @@ num-traits = "0.2"
 gtk4 = { version = "0.9.7", package = "gtk4" }
 libadwaita = { version = "0.7.2", package = "libadwaita" }
 inotify = { version = "0.10", features = ["stream"] }
+libc = "0.2"

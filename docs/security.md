@@ -80,10 +80,8 @@ XChaCha20-Poly1305 with a 256-bit key, which is not affected.
 
 ### PAM token is plaintext on disk
 `wssp-pam` writes the login password (in password mode) to `/run/user/<UID>/wssp-pam-token`
-(mode 0600). The file exists only for the brief window between PAM `authenticate()` completing
-and the daemon reading it. If the daemon crashes before reading it, the file persists with a
-plaintext credential until the next login or screensaver unlock. A future improvement would
-use a kernel keyring or `memfd_create()` to avoid filesystem exposure entirely.
+(mode 0600) upon `pam_setcred(PAM_ESTABLISH_CRED)`. The file exists only for the brief window between credential
+establishment and the daemon reading and zeroizing it.
 
 ### `vault.key` is plaintext on disk (no-password mode)
 In no-password mode the vault key is stored unencrypted in `vault.key` (mode 0600). Anyone
@@ -96,9 +94,8 @@ Screen locking via the logind `Session.Lock` signal **does** evict the vault key
 the vault as locked — but an explicit D-Bus `Lock` call from a client application has no
 effect. A full implementation would also zeroize in-memory item secrets on `Lock`.
 
-### Portal (`org.freedesktop.portal.Secret`) is a stub
-The xdg-desktop-portal integration returns `0u32` rather than writing the master key to the
-provided file descriptor. Full portal support requires `nix::unistd::write` with the fd.
+### Portal (`org.freedesktop.portal.Secret`) Per-App Secret Derivation
+The `xdg-desktop-portal` integration implements `org.freedesktop.impl.portal.Secret`. It derives a 256-bit per-application secret using `HKDF-SHA256(salt="org.freedesktop.portal.Secret", IKM=master_key, info=app_id)` and writes it to the provided file descriptor, zeroizing in-memory secrets after transmission.
 
 ## D-Bus Threat Surface
 

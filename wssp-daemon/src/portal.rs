@@ -1,7 +1,9 @@
 use crate::state::State;
+use hkdf::Hkdf;
+use sha2::Sha256;
 use std::collections::HashMap;
-use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::os::fd::AsFd;
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
@@ -9,6 +11,24 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info};
 use zbus::interface;
 use zbus::zvariant::{Fd, ObjectPath, Value};
+use zeroize::Zeroize;
+
+/// Derive a deterministic 32-byte (256-bit) per-application secret from the master key and `app_id`.
+/// Follows standard XDG Portal security practices using HKDF-SHA256.
+pub fn derive_app_secret(master_key: &[u8], app_id: &str) -> [u8; 32] {
+    let salt = b"org.freedesktop.portal.Secret";
+    let info = if app_id.is_empty() {
+        b"default".as_slice()
+    } else {
+        app_id.as_bytes()
+    };
+
+    let hk = Hkdf::<Sha256>::new(Some(salt), master_key);
+    let mut okm = [0u8; 32];
+    hk.expand(info, &mut okm)
+        .expect("32-byte output is always valid for HKDF-SHA256");
+    okm
+}
 
 pub struct PortalSecret {
     state: Arc<RwLock<State>>,
@@ -20,9 +40,9 @@ impl PortalSecret {
     }
 }
 
-/// Implementation of the xdg-desktop-portal backend secret interface.
-/// This allows sandboxed applications (Flatpak) to store and retrieve secrets
-/// through the portal mechanism without direct access to the D-Bus secret service.
+/// Implementation of the xdg-desktop-portal backend secret interface (`org.freedesktop.impl.portal.Secret`).
+/// This allows sandboxed applications (e.g. Flatpak) to retrieve application-specific master secrets
+/// through the portal mechanism without exposing the global keyring master key.
 #[interface(name = "org.freedesktop.impl.portal.Secret")]
 impl PortalSecret {
     /// RetrieveSecret method implementation.
@@ -48,36 +68,67 @@ impl PortalSecret {
             ));
         }
 
-        // In a real-world scenario, you would derive a per-app secret or 
-        // return a master key that the portal uses to encrypt the app's data.
-        // For WSSP, we'll provide the internal vault's master key if available.
-        let secret = match &state_guard.vault {
+        let master_key = match &state_guard.vault {
             Some(vault) => vault.get_master_key(),
             None => return Err(zbus::fdo::Error::Failed("No active vault".into())),
         };
 
-        // Transfer the secret through the file descriptor.
-        // We use UnixStream to wrap the raw FD for asynchronous I/O.
+        // Derive application-specific 32-byte secret using HKDF-SHA256
+        let mut app_secret = derive_app_secret(master_key, &app_id);
+
+        // Transfer the secret through the provided file descriptor
         let mut stream = unsafe {
             let std_stream = std::os::unix::net::UnixStream::from_raw_fd(fd.as_fd().as_raw_fd());
-            // Ensure the FD isn't closed when std_stream is dropped prematurely
             UnixStream::from_std(std_stream).map_err(|e| {
                 error!(error = %e, "Failed to create UnixStream from portal FD");
+                app_secret.zeroize();
                 zbus::fdo::Error::Failed(e.to_string())
             })?
         };
 
-        if let Err(e) = stream.write_all(secret).await {
+        let write_result = stream.write_all(&app_secret).await;
+        let flush_result = stream.flush().await;
+
+        // Zeroize in-memory secret immediately after transmission
+        app_secret.zeroize();
+
+        if let Err(e) = write_result.or(flush_result) {
             error!(error = %e, "Failed to write secret to portal FD");
             return Err(zbus::fdo::Error::Failed("IO Error".into()));
         }
 
-        // Flush and shutdown the write side to signal completion
-        let _ = stream.flush().await;
+        info!(%app_id, "Successfully sent derived app secret to portal");
 
-        info!(%app_id, "Successfully sent secret to portal");
-        
         // The portal spec expects an empty results dictionary on success
         Ok(HashMap::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_derive_app_secret_deterministic() {
+        let master_key = b"test_master_key_32_bytes_length!!";
+        let secret1 = derive_app_secret(master_key, "org.mozilla.firefox");
+        let secret2 = derive_app_secret(master_key, "org.mozilla.firefox");
+        assert_eq!(secret1, secret2);
+    }
+
+    #[test]
+    fn test_derive_app_secret_isolation() {
+        let master_key = b"test_master_key_32_bytes_length!!";
+        let secret_firefox = derive_app_secret(master_key, "org.mozilla.firefox");
+        let secret_vscode = derive_app_secret(master_key, "com.visualstudio.code");
+        assert_ne!(secret_firefox, secret_vscode);
+        assert_ne!(secret_firefox, master_key[..32]);
+    }
+
+    #[test]
+    fn test_derive_app_secret_empty_app_id() {
+        let master_key = b"test_master_key_32_bytes_length!!";
+        let secret = derive_app_secret(master_key, "");
+        assert_ne!(secret, [0u8; 32]);
     }
 }
