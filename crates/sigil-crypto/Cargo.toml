@@ -1,0 +1,22 @@
+[package]
+name = "sigil-crypto"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sigil Project"]
+description = "Cryptographic primitives and key derivation for sigil"
+
+[dependencies]
+sigil-core = { path = "../sigil-core" }
+chacha20poly1305 = { workspace = true }
+argon2 = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+aes = { workspace = true }
+cbc = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

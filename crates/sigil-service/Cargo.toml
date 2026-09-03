@@ -1,0 +1,17 @@
+[package]
+name = "sigil-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sigil Project"]
+description = "Core credential service, state machine, and domain business logic for sigil"
+
+[dependencies]
+sigil-core = { path = "../sigil-core" }
+sigil-crypto = { path = "../sigil-crypto" }
+sigil-store = { path = "../sigil-store" }
+tokio = { workspace = true, features = ["sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }

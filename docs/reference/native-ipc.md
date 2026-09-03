@@ -2,11 +2,11 @@
 
 ## Overview
 
-The native IPC interface is a private, high-performance transport between `credentiald` and trusted desktop session infrastructure (primarily `xdg-desktop-portal-aegis`).
+The native IPC interface is a private, high-performance transport between `sigil` and trusted desktop session infrastructure (primarily `xdg-desktop-portal-aegis`).
 
 ## Socket Location
 
-- **Default Path**: `$XDG_RUNTIME_DIR/credentiald/native.sock`
+- **Default Path**: `$XDG_RUNTIME_DIR/sigil/native.sock`
 - **Permissions**: Mode `0600` (restricted to current user)
 - **Parent Directory**: Mode `0700`
 
@@ -25,7 +25,7 @@ Maximum frame size is bounded to 64 KiB for safety.
 
 ## Authentication (SO_PEERCRED)
 
-Upon receiving a connection, `credentiald` queries `getsockopt(SO_PEERCRED)` on Linux:
+Upon receiving a connection, `sigil` queries `getsockopt(SO_PEERCRED)` on Linux:
 - The caller's effective UID MUST equal the daemon's effective UID.
 - Unauthorized connections receive an `AccessDenied` response and are immediately closed.
 

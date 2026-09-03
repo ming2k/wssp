@@ -1,0 +1,12 @@
+[package]
+name = "sigil-pam"
+version = "1.1.4"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+name = "pam_sigil"
+
+[dependencies]
+pamsm = { version = "0.4.3", features = ["libpam"] }
+libc = "0.2"

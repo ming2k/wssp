@@ -1,0 +1,11 @@
+[package]
+name = "sigil-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sigil Project"]
+description = "Pure domain types and error definitions for sigil"
+
+[dependencies]
+zeroize = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }

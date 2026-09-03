@@ -1,0 +1,18 @@
+[package]
+name = "sigil-secret-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sigil Project"]
+description = "Secret Service D-Bus frontend protocol adapter for sigil"
+
+[dependencies]
+sigil-core = { path = "../sigil-core" }
+sigil-crypto = { path = "../sigil-crypto" }
+sigil-service = { path = "../sigil-service" }
+zbus = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+zeroize = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }

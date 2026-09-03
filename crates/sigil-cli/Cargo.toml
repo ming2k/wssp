@@ -1,0 +1,18 @@
+[package]
+name = "sigil-cli"
+version = "1.2.0"
+edition = "2021"
+
+[dependencies]
+sigil-core = { path = "../sigil-core" }
+sigil-crypto = { path = "../sigil-crypto" }
+sigil-store = { path = "../sigil-store" }
+sigil-client = { path = "../sigil-client" }
+sigil-ipc = { path = "../sigil-ipc" }
+serde_json = "1.0"
+directories = { workspace = true }
+libc = "0.2"
+rpassword = "7"
+zeroize = { workspace = true }
+argon2 = { workspace = true }
+tokio = { workspace = true }

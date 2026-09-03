@@ -1,6 +1,6 @@
-# credentiald
+# sigil
 
-`credentiald` is a cryptographically secure implementation of the
+`sigil` is a cryptographically secure implementation of the
 [`org.freedesktop.secrets`](https://specifications.freedesktop.org/secret-service/latest/)
 Secret Service API for modern Linux desktops. It is designed to be a
 lightweight, headless-friendly drop-in replacement for gnome-keyring and KWallet.
@@ -16,7 +16,7 @@ lightweight, headless-friendly drop-in replacement for gnome-keyring and KWallet
 - **Two vault modes**: password-protected (recommended without FDE) or no-password/keyfile
   (recommended with full-disk encryption). See [docs/explanation/unlock-strategies.md](docs/explanation/unlock-strategies.md).
 - **Headless support**: daemon runs without a display; secrets can be injected via
-  `CREDENTIALD_PASSWORD` for IoT/server deployments.
+  `SIGIL_PASSWORD` for IoT/server deployments.
 - **Broad compatibility**: works with browsers (Chrome, Firefox), VS Code, `secret-tool`,
   and any application using `libsecret`.
 
@@ -31,7 +31,7 @@ cargo build --release
 ### 2. Pre-flight: free the `org.freedesktop.secrets` D-Bus name
 
 Only one process can own `org.freedesktop.secrets` per session. Check who currently owns it
-and disable any other Secret Service provider before installing `credentiald`:
+and disable any other Secret Service provider before installing `sigil`:
 
 ```bash
 busctl --user status org.freedesktop.secrets   # shows owning PID, or fails if no owner
@@ -45,31 +45,31 @@ systemctl --user disable --now kwallet5.service kwalletd5.service 2>/dev/null
 rm -f ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
 ```
 
-If you skip this step the `credentiald` systemd unit will fail to load with
+If you skip this step the `sigil` systemd unit will fail to load with
 *"Two services allocated for the same bus name org.freedesktop.secrets"*. See
 [docs/how-to/troubleshoot-dbus-conflicts.md](docs/how-to/troubleshoot-dbus-conflicts.md).
 
 ### 3. Install binaries and service
 
 ```bash
-sudo cp target/release/credentiald /usr/bin/
-sudo cp target/release/credentiald-prompter /usr/bin/
-sudo cp target/release/credentiald-cli /usr/bin/
+sudo cp target/release/sigil /usr/bin/
+sudo cp target/release/sigil-prompter /usr/bin/
+sudo cp target/release/sigil-cli /usr/bin/
 mkdir -p ~/.config/systemd/user/
-cp systemd/user/credentiald.service ~/.config/systemd/user/
+cp systemd/user/sigil.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now credentiald.service
+systemctl --user enable --now sigil.service
 ```
 
 ### 4. Verify the daemon is the one answering
 
 ```bash
-# Owning PID should match credentiald.service MainPID:
+# Owning PID should match sigil.service MainPID:
 busctl --user status org.freedesktop.secrets | grep ^PID=
-systemctl --user show credentiald.service --property=MainPID
+systemctl --user show sigil.service --property=MainPID
 
-# Round-trip a secret to confirm libsecret clients reach credentiald:
-secret-tool store --label=credentiald-smoke smoke yes <<< ok && \
+# Round-trip a secret to confirm libsecret clients reach sigil:
+secret-tool store --label=sigil-smoke smoke yes <<< ok && \
   secret-tool lookup smoke yes && \
   secret-tool clear  smoke yes
 ```
@@ -78,36 +78,36 @@ On first start the daemon automatically initializes a no-password vault. If you 
 password protection instead, stop the daemon and initialize explicitly:
 
 ```bash
-systemctl --user stop credentiald.service
-credentiald-cli init
-systemctl --user start credentiald.service
+systemctl --user stop sigil.service
+sigil-cli init
+systemctl --user start sigil.service
 ```
 
 ### 5. PAM integration (optional)
 
 **Purpose.** The PAM module exists for one reason: to remove the manual unlock prompt.
-It captures your login password as PAM authenticates you, hands it to `credentiald`, and
+It captures your login password as PAM authenticates you, hands it to `sigil`, and
 the daemon derives the vault key from it. The same hook re-runs when you dismiss
 `swaylock`, so the vault re-unlocks automatically after the screensaver.
 
 **You do not need it if** any of the following holds:
 - You run a no-password (keyfile) vault — the daemon unlocks itself at startup.
-- You are happy to unlock manually via `credentiald-cli unlock` or the GUI prompter.
-- You are deploying headless and set `CREDENTIALD_PASSWORD=` in the unit file.
+- You are happy to unlock manually via `sigil-cli unlock` or the GUI prompter.
+- You are deploying headless and set `SIGIL_PASSWORD=` in the unit file.
 
 **Install only if** you want zero-friction login + screensaver unlock for a
 password-protected vault, and you accept that your login password is briefly written to
-`/run/user/<uid>/credentiald-pam-token` (tmpfs, mode `0600`, deleted on read).
+`/run/user/<uid>/sigil-pam-token` (tmpfs, mode `0600`, deleted on read).
 
 ```bash
 # Build and install the PAM module
-sudo cp target/release/libpam_credentiald.so /lib/security/pam_credentiald.so
+sudo cp target/release/libpam_sigil.so /lib/security/pam_sigil.so
 
 # Add to login PAM stack (Arch: /etc/pam.d/system-login)
-echo "auth optional pam_credentiald.so" | sudo tee -a /etc/pam.d/system-login
+echo "auth optional pam_sigil.so" | sudo tee -a /etc/pam.d/system-login
 
 # Add to swaylock for screensaver re-unlock
-echo "auth optional pam_credentiald.so" | sudo tee -a /etc/pam.d/swaylock
+echo "auth optional pam_sigil.so" | sudo tee -a /etc/pam.d/swaylock
 ```
 
 For Debian/Ubuntu/Fedora PAM stack paths, no-password mode trade-offs, and headless setup,
@@ -116,13 +116,13 @@ see [docs/how-to/configure-unlock.md](docs/how-to/configure-unlock.md).
 ## Vault Management
 
 ```bash
-credentiald-cli init                 # first-time setup with password (prompted)
-credentiald-cli init --no-password   # first-time setup without password (requires FDE)
-credentiald-cli unlock               # unlock active session
-credentiald-cli change-password      # change password
-credentiald-cli clear-password       # switch to no-password mode
-credentiald-cli set-password         # switch from no-password to password mode
-credentiald-cli reset                # wipe vault (irreversible)
+sigil-cli init                 # first-time setup with password (prompted)
+sigil-cli init --no-password   # first-time setup without password (requires FDE)
+sigil-cli unlock               # unlock active session
+sigil-cli change-password      # change password
+sigil-cli clear-password       # switch to no-password mode
+sigil-cli set-password         # switch from no-password to password mode
+sigil-cli reset                # wipe vault (irreversible)
 ```
 
 ## Security Model

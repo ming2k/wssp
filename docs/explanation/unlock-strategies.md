@@ -1,6 +1,6 @@
 # Vault Unlock Strategies
 
-`credentiald` offers two vault protection modes and two unlock mechanisms. Choose based on your
+`sigil` offers two vault protection modes and two unlock mechanisms. Choose based on your
 disk encryption setup and tolerance for friction.
 
 ---
@@ -28,7 +28,7 @@ filesystem.
 
 **When it is safe**: when full-disk encryption (LUKS or equivalent) is active. LUKS
 encrypts the entire disk — an attacker cannot read `vault.key` without the LUKS passphrase,
-so the vault remains protected. `credentiald`'s own encryption becomes a redundant inner layer that
+so the vault remains protected. `sigil`'s own encryption becomes a redundant inner layer that
 adds friction with no security benefit.
 
 ---
@@ -49,12 +49,12 @@ SSH private keys without passphrases follow the same logic.
 
 ## Unlock Mechanisms
 
-Regardless of which protection mode you use, `credentiald` unlocks the vault automatically — no
+Regardless of which protection mode you use, `sigil` unlocks the vault automatically — no
 separate prompt is needed. Two mechanisms work together:
 
 ### A — PAM (login-time unlock)
 
-`pam_credentiald.so` intercepts the authentication token during login and writes it to a temporary
+`pam_sigil.so` intercepts the authentication token during login and writes it to a temporary
 file. The daemon reads it at startup and unlocks.
 
 - **Password mode**: the token content is used to derive the vault key.
@@ -63,7 +63,7 @@ file. The daemon reads it at startup and unlocks.
 
 ### B — Screensaver integration (swaylock)
 
-Add `pam_credentiald.so` to swaylock's PAM stack so the daemon re-unlocks automatically when the
+Add `pam_sigil.so` to swaylock's PAM stack so the daemon re-unlocks automatically when the
 screensaver is dismissed.
 
 Lock → vault locks (logind `Session.Lock` signal).

@@ -1,0 +1,21 @@
+[package]
+name = "sigil-ipc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sigil Project"]
+description = "Native IPC protocol, length-prefixed framing, and peer authentication for sigil"
+
+[dependencies]
+sigil-core = { path = "../sigil-core" }
+sigil-crypto = { path = "../sigil-crypto" }
+sigil-service = { path = "../sigil-service" }
+tokio = { workspace = true, features = ["net", "io-util", "sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+libc = { workspace = true }
+
+[dev-dependencies]
+sigil-store = { path = "../sigil-store" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

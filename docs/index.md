@@ -1,6 +1,6 @@
-# credentiald Documentation
+# sigil Documentation
 
-Welcome to the `credentiald` documentation. `credentiald` is a desktop credential infrastructure daemon implemented in Rust. It provides a freedesktop.org Secret Service API implementation and a native IPC interface for trusted desktop components such as Portal backends.
+Welcome to the `sigil` documentation. `sigil` is a desktop credential infrastructure daemon implemented in Rust. It provides a freedesktop.org Secret Service API implementation and a native IPC interface for trusted desktop components such as Portal backends.
 
 ## Documentation Navigation
 
@@ -29,7 +29,7 @@ docs/
 
 - [Native IPC Specification](reference/native-ipc.md): Unix socket framing, protocol payloads, and peer authentication.
 - [Storage Format](reference/storage-format.md): Encrypted vault format, Argon2id KDF sidecar, and permission invariants.
-- [CLI Reference](reference/cli.md): `credentiald-cli` command reference.
+- [CLI Reference](reference/cli.md): `sigil-cli` command reference.
 
 ### Governance & Development
 

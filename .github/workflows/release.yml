@@ -39,12 +39,12 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           ARCH="$(uname -m)"
-          DIST="credentiald-${VERSION}-linux-${ARCH}"
+          DIST="sigil-${VERSION}-linux-${ARCH}"
           mkdir -p "${DIST}/bin" "${DIST}/lib" "${DIST}/systemd/user" "${DIST}/systemd/portals" "${DIST}/dbus"
-          cp target/release/credentiald "${DIST}/bin/"
-          cp target/release/credentiald-prompter "${DIST}/bin/"
-          cp target/release/credentiald-cli "${DIST}/bin/"
-          cp target/release/libpam_credentiald.so "${DIST}/lib/"
+          cp target/release/sigil "${DIST}/bin/"
+          cp target/release/sigil-prompter "${DIST}/bin/"
+          cp target/release/sigil-cli "${DIST}/bin/"
+          cp target/release/libpam_sigil.so "${DIST}/lib/"
           cp systemd/user/* "${DIST}/systemd/user/" 2>/dev/null || true
           cp systemd/portals/* "${DIST}/systemd/portals/" 2>/dev/null || true
           cp dbus/* "${DIST}/dbus/" 2>/dev/null || true
@@ -56,6 +56,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            credentiald-*.tar.gz
-            credentiald-*.tar.gz.sha256
+            sigil-*.tar.gz
+            sigil-*.tar.gz.sha256
           generate_release_notes: true

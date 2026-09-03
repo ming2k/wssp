@@ -8,7 +8,7 @@ Cargo.lock
 *.log
 *.enc
 *.salt
-/run/user/*/credentiald-pam-token
+/run/user/*/sigil-pam-token
 /run/user/*/wssp-pam-token
 
 # AI tooling workspace (per-user state, not shared config)

@@ -24,7 +24,7 @@ sudo apt install busctl secret-tool d-feet
 cargo build
 
 # Daemon only (faster iteration)
-cargo build -p credentiald
+cargo build -p sigil
 ```
 
 ## Running the Daemon
@@ -35,10 +35,10 @@ first, or run inside a separate D-Bus session (see _Isolated D-Bus session_ belo
 
 ```bash
 # Standard run with debug logging
-RUST_LOG=debug cargo run -p credentiald
+RUST_LOG=debug cargo run -p sigil
 
 # Run with the prompter binary path explicitly set
-CREDENTIALD_PROMPTER_PATH=./target/debug/credentiald-prompter RUST_LOG=debug cargo run -p credentiald
+SIGIL_PROMPTER_PATH=./target/debug/sigil-prompter RUST_LOG=debug cargo run -p sigil
 ```
 
 ### Key environment variables
@@ -46,15 +46,15 @@ CREDENTIALD_PROMPTER_PATH=./target/debug/credentiald-prompter RUST_LOG=debug car
 | Variable | Effect |
 |----------|--------|
 | `RUST_LOG` | Log verbosity: `error`, `warn`, `info`, `debug`, `trace` |
-| `CREDENTIALD_PROMPTER_PATH` | Absolute or relative path to `credentiald-prompter` binary |
-| `CREDENTIALD_PASSWORD` | Skip GUI prompt; used when `WAYLAND_DISPLAY` and `DISPLAY` are both unset (headless) |
+| `SIGIL_PROMPTER_PATH` | Absolute or relative path to `sigil-prompter` binary |
+| `SIGIL_PASSWORD` | Skip GUI prompt; used when `WAYLAND_DISPLAY` and `DISPLAY` are both unset (headless) |
 
 ## Testing with `secret-tool`
 
 Build both binaries first, then in one terminal:
 
 ```bash
-cargo build && CREDENTIALD_PROMPTER_PATH=./target/debug/credentiald-prompter ./target/debug/credentiald
+cargo build && SIGIL_PROMPTER_PATH=./target/debug/sigil-prompter ./target/debug/sigil
 ```
 
 In another terminal:
@@ -133,10 +133,10 @@ Expected: `vs o "" "/org/freedesktop/secrets/session/s<hex>"`
 cargo test
 
 # Crypto unit tests only
-cargo test -p credentiald session::tests
+cargo test -p sigil session::tests
 
 # Vault tests
-cargo test -p credentiald-core
+cargo test -p sigil-core
 ```
 
 The `session::tests` module contains:
@@ -176,7 +176,7 @@ eval $(dbus-launch --sh-syntax)
 echo "Session bus: $DBUS_SESSION_BUS_ADDRESS"
 
 # In the same shell, run the daemon
-cargo run -p credentiald
+cargo run -p sigil
 
 # In another shell, set the same DBUS_SESSION_BUS_ADDRESS and use secret-tool
 ```
@@ -186,13 +186,13 @@ cargo run -p credentiald
 The PAM module requires root to install and a real PAM stack to test end-to-end. For unit
 testing:
 
-1. Build: `cargo build -p credentiald-pam`
+1. Build: `cargo build -p sigil-pam`
 2. Simulate its behaviour manually:
    ```bash
-   echo -n "mypassword" > /run/user/$(id -u)/credentiald-pam-token
-   chmod 600 /run/user/$(id -u)/credentiald-pam-token
+   echo -n "mypassword" > /run/user/$(id -u)/sigil-pam-token
+   chmod 600 /run/user/$(id -u)/sigil-pam-token
    ```
-3. Start `credentiald` — it should auto-unlock and log `PAM token found; attempting automatic unlock.`
+3. Start `sigil` — it should auto-unlock and log `PAM token found; attempting automatic unlock.`
 
 To test the screensaver re-unlock path (inotify watcher), lock the vault first then write the
 token file while the daemon is running:
@@ -200,15 +200,15 @@ token file while the daemon is running:
 # Lock (simulate screen lock)
 loginctl lock-session
 # Re-unlock (simulate swaylock dismissal)
-echo -n "mypassword" > /run/user/$(id -u)/credentiald-pam-token && chmod 600 /run/user/$(id -u)/credentiald-pam-token
+echo -n "mypassword" > /run/user/$(id -u)/sigil-pam-token && chmod 600 /run/user/$(id -u)/sigil-pam-token
 # Daemon should log: Vault re-unlocked via PAM token (screensaver dismissed).
 ```
 
 To install the module (system-wide):
 ```bash
-sudo cp target/release/libpam_credentiald.so /lib/security/pam_credentiald.so
+sudo cp target/release/libpam_sigil.so /lib/security/pam_sigil.so
 # Add to /etc/pam.d/login (after the pam_unix.so auth line):
-# auth optional pam_credentiald.so
+# auth optional pam_sigil.so
 ```
 
 ## Troubleshooting
@@ -218,7 +218,7 @@ The client and daemon derived different AES session keys. Likely causes:
 - Key derivation mismatch (must be HKDF-SHA256, not plain SHA256)
 - D-Bus variant type mismatch when extracting the client's DH public key
 
-Run `cargo test -p credentiald session::tests::full_dh_roundtrip` — if it passes, the
+Run `cargo test -p sigil session::tests::full_dh_roundtrip` — if it passes, the
 daemon's own DH is internally consistent. If the error still occurs with `secret-tool`,
 use `dbus-monitor` to capture the raw public key bytes.
 
@@ -226,28 +226,28 @@ use `dbus-monitor` to capture the raw public key bytes.
 Another process holds `org.freedesktop.secrets`:
 ```bash
 busctl --user status org.freedesktop.secrets
-pkill credentiald      # or stop gnome-keyring
+pkill sigil      # or stop gnome-keyring
 ```
 
-### `credentiald.sock already in use`
+### `sigil.sock already in use`
 The daemon cleans up stale sockets on startup. If it still fails:
 ```bash
-rm $XDG_RUNTIME_DIR/credentiald.sock
+rm $XDG_RUNTIME_DIR/sigil.sock
 ```
 
 ### Prompter does not appear
 - Check `WAYLAND_DISPLAY` is set
-- Run `./target/debug/credentiald-prompter` directly to see GTK errors
-- Check daemon log for the exact command it tried: look for `Spawned credentiald-prompter`
-- Set `CREDENTIALD_PROMPTER_PATH` to an absolute path
+- Run `./target/debug/sigil-prompter` directly to see GTK errors
+- Check daemon log for the exact command it tried: look for `Spawned sigil-prompter`
+- Set `SIGIL_PROMPTER_PATH` to an absolute path
 
 ### Vault decryption fails after a crash
 If Argon2id parameters changed between builds, the derived key changes. Reset the vault:
 ```bash
-credentiald-cli reset --force
-systemctl --user restart credentiald.service
+sigil-cli reset --force
+systemctl --user restart sigil.service
 ```
 
 ### First run does not auto-initialize
 If `vault.enc` already exists from a previous install, the daemon will not re-initialize.
-Use `credentiald-cli reset --force` to wipe and restart cleanly.
+Use `sigil-cli reset --force` to wipe and restart cleanly.

@@ -2,7 +2,7 @@
 
 ## 1. Scope & Objective
 
-`credentiald` is a desktop session credential service responsible for secure credential storage, cryptographic protection, lifecycle management, locking, and credential-related policy.
+`sigil` is a desktop session credential service responsible for secure credential storage, cryptographic protection, lifecycle management, locking, and credential-related policy.
 
 This threat model defines the security boundaries, assets, threat actors, protections, and explicit non-claims of the system.
 
@@ -35,7 +35,7 @@ This threat model defines the security boundaries, assets, threat actors, protec
 │                              │                              │
 │                              ▼ (SO_PEERCRED verified)       │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │ credentiald (Isolated TCB & Vault Guardian)           │  │
+│  │ sigil (Isolated TCB & Vault Guardian)           │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -43,7 +43,7 @@ This threat model defines the security boundaries, assets, threat actors, protec
 ## 4. Protected Threats (Security Claims)
 
 - **At-Rest Filesystem Theft**: Encrypted with XChaCha20-Poly1305 and Argon2id. Without the master key or user passphrase, ciphertext disclosure yields zero plaintext or metadata.
-- **Cross-Sandbox Secret Leakage**: App A cannot access App B's secret. Portal identities are verified by `xdg-desktop-portal` before reaching `credentiald`, and keys are mathematically orthogonal via HKDF-SHA256 domain separation.
+- **Cross-Sandbox Secret Leakage**: App A cannot access App B's secret. Portal identities are verified by `xdg-desktop-portal` before reaching `sigil`, and keys are mathematically orthogonal via HKDF-SHA256 domain separation.
 - **Memory Dumping / Core Dumps**: All secret-holding structures implement `Zeroize` / `ZeroizeOnDrop` and are cleared immediately upon leaving scope or when locked.
 - **Log Leakage**: `SecretBytes` and `MasterKey` redact their contents in all standard formatting traits (`Debug`, `Display`).
 - **Atomicity & Power Loss**: Vault writes use `atomic_replace` (`O_NOFOLLOW`, temporary file, `fsync`, atomic rename). Partial writes or broken JSON files cannot corrupt the storage state.

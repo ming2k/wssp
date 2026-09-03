@@ -1,0 +1,13 @@
+[package]
+name = "sigil-prompter"
+version = "1.2.0"
+edition = "2021"
+
+[dependencies]
+sigil-ipc = { path = "../sigil-ipc" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+gtk4 = { version = "0.9", package = "gtk4" }
+libadwaita = { version = "0.7", package = "libadwaita" }
+serde_json = "1.0"

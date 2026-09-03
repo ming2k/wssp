@@ -2,10 +2,10 @@
 
 ## Location & Files
 
-All persistent state lives in `$CREDENTIALD_DATA_DIR` (defaults to `$XDG_DATA_HOME/credentiald/` or `~/.local/share/credentiald/`).
+All persistent state lives in `$SIGIL_DATA_DIR` (defaults to `$XDG_DATA_HOME/sigil/` or `~/.local/share/sigil/`).
 
 ```text
-~/.local/share/credentiald/
+~/.local/share/sigil/
 ├── vault.enc   # Encrypted vault data (XChaCha20-Poly1305)
 ├── vault.key   # 256-bit root key in hex (Keyfile mode only)
 ├── vault.kdf   # JSON Argon2id parameters (Password mode only)

@@ -1,4 +1,4 @@
-# Contributing to credentiald
+# Contributing to sigil
 
 ## Reporting Issues
 
@@ -40,10 +40,10 @@ cryptographic correctness and memory-safety implications:
 
 | File | What to verify |
 |------|---------------|
-| `credentiald/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
-| `credentiald-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
-| `credentiald/src/ipc.rs` | Socket permissions, timeout handling |
-| `credentiald-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
+| `sigil/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
+| `sigil-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
+| `sigil/src/ipc.rs` | Socket permissions, timeout handling |
+| `sigil-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
 
 **Documentation**: if you change a data flow, update `docs/explanation/architecture.md`. If you change a
 cryptographic primitive, update `SECURITY.md`.

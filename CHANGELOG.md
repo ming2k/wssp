@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
-- **Project renamed to `credentiald`**:
-  - Reorganized workspace crates: `credentiald`, `credentiald-core`, `credentiald-common`, `credentiald-cli`, `credentiald-prompter`, `credentiald-pam`.
-  - Daemon binary and systemd service renamed to `credentiald` / `credentiald.service`.
-  - PAM module renamed to `pam_credentiald.so` (`credentiald-pam-token`).
-  - Prompter GTK application ID updated to `org.credentiald.Prompter`.
-  - Environment variables updated to `CREDENTIALD_PROMPTER_PATH` and `CREDENTIALD_PASSWORD` (with legacy fallback).
-  - All documentation, tooling scripts, CI/CD workflows, and configurations updated for complete consistency.
+- **Project renamed to `sigil`**:
+  - Workspace crates renamed: `sigil`, `sigil-core`, `sigil-crypto`, `sigil-store`, `sigil-service`, `sigil-ipc`, `sigil-client`, `sigil-secret-service`, `sigil-cli`, `sigil-prompter`, `sigil-pam`. Public types renamed (`SigilError`, `SigilClient`, `SigilService`); domain types (`CredentialId`, `MasterKey`, `SecretBytes`, etc.) unchanged.
+  - Daemon binary and systemd unit renamed to `sigil` / `sigil.service`.
+  - PAM module artifact renamed to `pam_sigil.so` (token path `/run/user/<uid>/sigil-pam-token`).
+  - Prompter GTK application ID updated to `org.sigil.Prompter`.
+  - Runtime paths changed (`~/.local/share/sigil`, `$XDG_RUNTIME_DIR/sigil/native.sock`) and environment variable prefix changed to `SIGIL_` (`SIGIL_DATA_DIR`, `SIGIL_SOCKET_PATH`, `SIGIL_PROMPTER_PATH`, `SIGIL_PASSWORD`). **Breaking**: no automatic migration of existing vaults or env vars.
+  - Documentation, CI release workflow, DBus/systemd service files updated. Wire-protocol contracts preserved unchanged (`aegis.portal.Secret/v1` namespace, `org.freedesktop.secrets` bus name).
 
 ## [1.1.4] - 2026-08-24
 

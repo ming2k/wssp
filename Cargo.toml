@@ -1,16 +1,16 @@
 [workspace]
 members = [
-    "crates/credential-core",
-    "crates/credential-crypto",
-    "crates/credential-store",
-    "crates/credential-service",
-    "crates/credential-ipc",
-    "crates/credential-client",
-    "crates/credential-secret-service",
-    "crates/credentiald",
-    "crates/credentiald-cli",
-    "crates/credentiald-prompter",
-    "crates/credentiald-pam",
+    "crates/sigil-core",
+    "crates/sigil-crypto",
+    "crates/sigil-store",
+    "crates/sigil-service",
+    "crates/sigil-ipc",
+    "crates/sigil-client",
+    "crates/sigil-secret-service",
+    "crates/sigil",
+    "crates/sigil-cli",
+    "crates/sigil-prompter",
+    "crates/sigil-pam",
 ]
 resolver = "2"
 
