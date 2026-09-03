@@ -1,12 +1,12 @@
 # Developer Setup
 
-This guide will walk you through setting up your local environment to develop, compile, and run WSSP.
+This guide will walk you through setting up your local environment to develop, compile, and run `credentiald`.
 
 ## 1. Prerequisites
 
 ### System Libraries
 
-WSSP relies on D-Bus for IPC, GTK4 / Libadwaita for the prompter UI, and PAM for the
+`credentiald` relies on D-Bus for IPC, GTK4 / Libadwaita for the prompter UI, and PAM for the
 auto-unlock module.
 
 | Distribution | Install command |
@@ -36,24 +36,24 @@ rustup update stable
 
 ## 2. Building the Project
 
-WSSP is organized as a Cargo workspace. You can build all components at once or focus on the daemon for faster iteration.
+`credentiald` is organized as a Cargo workspace. You can build all components at once or focus on the daemon for faster iteration.
 
 ```bash
 # Build the entire workspace (daemon, cli, prompter, pam, core, common)
 cargo build
 
 # Build only the daemon (useful when working on core logic)
-cargo build -p wssp-daemon
+cargo build -p credentiald
 ```
 
 ## 3. Running the Daemon for Development
 
 The daemon registers the well-known D-Bus name `org.freedesktop.secrets`. Only one process
 per session can own this name, so before either approach below you must stop **every**
-existing owner — `gnome-keyring`, `kwallet`, *and* an installed `wssp-daemon.service`:
+existing owner — `gnome-keyring`, `kwallet`, *and* an installed `credentiald.service`:
 
 ```bash
-systemctl --user stop wssp-daemon.service 2>/dev/null
+systemctl --user stop credentiald.service 2>/dev/null
 pkill -x gnome-keyring-daemon 2>/dev/null
 pkill -x kwalletd5 2>/dev/null
 busctl --user status org.freedesktop.secrets 2>&1 | grep -q PID= && \
@@ -64,7 +64,7 @@ For diagnosing why something keeps re-acquiring the name, see
 [../how-to/troubleshoot-dbus-conflicts.md](../how-to/troubleshoot-dbus-conflicts.md).
 
 ### Approach A: Isolated D-Bus Session (Recommended)
-This approach is perfect for testing how third-party applications (like `agy cli`, Chrome, or VS Code) interact with WSSP. It creates a "sandbox" D-Bus, ensuring your tests don't pollute your real system passwords, and your system's keyring doesn't intercept the test app.
+This approach is perfect for testing how third-party applications (like `agy cli`, Chrome, or VS Code) interact with `credentiald`. It creates a "sandbox" D-Bus, ensuring your tests don't pollute your real system passwords, and your system's keyring doesn't intercept the test app.
 
 **Terminal 1 (The Sandbox Daemon):**
 ```bash
@@ -73,7 +73,7 @@ eval $(dbus-launch --sh-syntax)
 echo "Session bus: $DBUS_SESSION_BUS_ADDRESS"
 
 # 2. Run the daemon in this shell
-RUST_LOG=debug cargo run -p wssp-daemon
+RUST_LOG=debug cargo run -p credentiald
 ```
 
 **Terminal 2 (The 3rd-Party App):**
@@ -83,7 +83,7 @@ export DBUS_SESSION_BUS_ADDRESS="unix:abstract=/tmp/dbus-...,guid=..."
 
 # 2. Run your third-party application. It will now talk EXCLUSIVELY to your dev daemon.
 # For example:
-agy cli auth login
+secret-tool store --label="Test Secret" test test
 ```
 
 ### Approach B: Replacing your Desktop Keyring
@@ -93,8 +93,8 @@ If you want to test the full PAM/UI flow in your actual session:
 # Kill the existing secret service
 pkill gnome-keyring-daemon || pkill kwalletd5
 
-# Run WSSP with the prompter path explicitly provided so the UI works
-WSSP_PROMPTER_PATH=./target/debug/wssp-prompter RUST_LOG=debug cargo run -p wssp-daemon
+# Run credentiald with the prompter path explicitly provided so the UI works
+CREDENTIALD_PROMPTER_PATH=./target/debug/credentiald-prompter RUST_LOG=debug cargo run -p credentiald
 ```
 
 ## 4. Key Environment Variables
@@ -102,8 +102,8 @@ WSSP_PROMPTER_PATH=./target/debug/wssp-prompter RUST_LOG=debug cargo run -p wssp
 | Variable | Effect |
 |----------|--------|
 | `RUST_LOG` | Log verbosity: `error`, `warn`, `info`, `debug`, `trace`. Setting `RUST_LOG=debug` is highly recommended for development. |
-| `WSSP_PROMPTER_PATH` | Absolute or relative path to the compiled `wssp-prompter` binary. Required for the daemon to spawn the unlock UI. |
-| `WSSP_PASSWORD` | Used for headless/IoT testing. Skips the GUI prompt when `WAYLAND_DISPLAY` and `DISPLAY` are both unset. |
+| `CREDENTIALD_PROMPTER_PATH` | Absolute or relative path to the compiled `credentiald-prompter` binary. Required for the daemon to spawn the unlock UI. |
+| `CREDENTIALD_PASSWORD` | Used for headless/IoT testing. Skips the GUI prompt when `WAYLAND_DISPLAY` and `DISPLAY` are both unset. |
 
 ## 5. Cleanup After a Dev Session
 
@@ -113,7 +113,7 @@ of the dev session:
 
 ```bash
 # 1. Per-user D-Bus activation file pointing at target/{debug,release}/.
-#    WSSP itself never creates this; if you created one to test third-party apps without
+#    credentiald itself never creates this; if you created one to test third-party apps without
 #    setting DBUS_SESSION_BUS_ADDRESS, remove it now.
 rm -f ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
 
@@ -121,8 +121,7 @@ rm -f ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
 ls ~/.config/systemd/user/*.service 2>/dev/null | xargs -r grep -l 'BusName=org.freedesktop.secrets'
 # If anything is listed, disable + remove it, then daemon-reload.
 
-# 3. If you renamed the daemon binary at any point (historic example: wss-daemon → wssp-daemon),
-#    purge stale build artifacts so dbus-daemon can never fork-exec them:
+# 3. Purge stale build artifacts:
 cargo clean
 ```
 
@@ -136,8 +135,8 @@ A full diagnostic procedure for "the wrong binary is answering" is in
 cargo test
 
 # Single crate (faster iteration on cryptography or D-Bus serialization)
-cargo test -p wssp-core
-cargo test -p wssp-daemon
+cargo test -p credentiald-core
+cargo test -p credentiald
 ```
 
 End-to-end D-Bus testing is currently done manually with `busctl`, `secret-tool`, and

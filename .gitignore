@@ -8,6 +8,7 @@ Cargo.lock
 *.log
 *.enc
 *.salt
+/run/user/*/credentiald-pam-token
 /run/user/*/wssp-pam-token
 
 # AI tooling workspace (per-user state, not shared config)
@@ -15,6 +16,7 @@ Cargo.lock
 .gemini/
 .antigravitycli/
 .codegraph/
+.muta/
 
 # AI assistant instruction files (per-developer, not shared)
 /AGENTS.md

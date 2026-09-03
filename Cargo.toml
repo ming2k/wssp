@@ -1,11 +1,17 @@
 [workspace]
 members = [
-    "wssp-daemon",
-    "wssp-prompter",
-    "wssp-common",
-    "wssp-cli",
-    "wssp-pam"
-, "wssp-core"]
+    "crates/credential-core",
+    "crates/credential-crypto",
+    "crates/credential-store",
+    "crates/credential-service",
+    "crates/credential-ipc",
+    "crates/credential-client",
+    "crates/credential-secret-service",
+    "crates/credentiald",
+    "crates/credentiald-cli",
+    "crates/credentiald-prompter",
+    "crates/credentiald-pam",
+]
 resolver = "2"
 
 [workspace.dependencies]

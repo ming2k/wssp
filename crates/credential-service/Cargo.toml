@@ -1,0 +1,17 @@
+[package]
+name = "credential-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Core credential service, state machine, and domain business logic for credentiald"
+
+[dependencies]
+credential-core = { path = "../credential-core" }
+credential-crypto = { path = "../credential-crypto" }
+credential-store = { path = "../credential-store" }
+tokio = { workspace = true, features = ["sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }

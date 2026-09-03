@@ -5,8 +5,8 @@
 ### 1. Install the PAM module
 
 ```bash
-cargo build --release -p wssp-pam
-sudo cp target/release/libwssp_pam.so /lib/security/pam_wssp.so
+cargo build --release -p credentiald-pam
+sudo cp target/release/libpam_credentiald.so /lib/security/pam_credentiald.so
 ```
 
 ### 2. Add to login PAM stack
@@ -18,30 +18,30 @@ sudo cp target/release/libwssp_pam.so /lib/security/pam_wssp.so
 | Fedora | `/etc/pam.d/login` |
 
 ```
-auth optional pam_wssp.so
+auth optional pam_credentiald.so
 ```
 
 ### 3. Add to swaylock PAM stack
 
 ```
 # /etc/pam.d/swaylock
-auth optional pam_wssp.so
+auth optional pam_credentiald.so
 ```
 
 ### 4. Switch to no-password mode (if using FDE)
 
 ```bash
-systemctl --user stop wssp-daemon.service
-wssp-cli clear-password   # prompts for current vault password
-systemctl --user start wssp-daemon.service
+systemctl --user stop credentiald.service
+credentiald-cli clear-password   # prompts for current vault password
+systemctl --user start credentiald.service
 ```
 
 To revert to password mode:
 
 ```bash
-systemctl --user stop wssp-daemon.service
-wssp-cli set-password     # prompts for new password (confirmed)
-systemctl --user start wssp-daemon.service
+systemctl --user stop credentiald.service
+credentiald-cli set-password     # prompts for new password (confirmed)
+systemctl --user start credentiald.service
 ```
 
 ---
@@ -51,13 +51,13 @@ systemctl --user start wssp-daemon.service
 ```bash
 # Change vault password (password mode only)
 # Stop the daemon first to avoid vault file conflicts.
-systemctl --user stop wssp-daemon.service
-wssp-cli change-password  # prompts for old password, then new password (confirmed)
-systemctl --user start wssp-daemon.service
+systemctl --user stop credentiald.service
+credentiald-cli change-password  # prompts for old password, then new password (confirmed)
+systemctl --user start credentiald.service
 
 # Wipe all secrets and start over (irreversible)
-wssp-cli reset
-wssp-cli reset --force   # skip confirmation prompt
+credentiald-cli reset
+credentiald-cli reset --force   # skip confirmation prompt
 ```
 
 ---
@@ -68,8 +68,8 @@ Neither mode above applies to headless systems (no display, no PAM login session
 vault password via environment variable:
 
 ```ini
-# ~/.config/systemd/user/wssp-daemon.service [Service]
-Environment="WSSP_PASSWORD=your_device_password"
+# ~/.config/systemd/user/credentiald.service [Service]
+Environment="CREDENTIALD_PASSWORD=your_device_password"
 ```
 
 The daemon detects the absence of `WAYLAND_DISPLAY` and `DISPLAY`, waits up to 30 seconds

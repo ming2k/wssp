@@ -1,4 +1,4 @@
-# Contributing to WSSP
+# Contributing to credentiald
 
 ## Reporting Issues
 
@@ -11,7 +11,7 @@ For security vulnerabilities, do **not** open a public issue. Contact the mainta
 
 ## Development Setup
 
-See [Development Guide](./development.md) for build instructions and debugging tools.
+See [docs/dev/development.md](docs/dev/development.md) for build instructions and debugging tools.
 
 ## Submitting a Pull Request
 
@@ -19,7 +19,7 @@ See [Development Guide](./development.md) for build instructions and debugging t
    ```bash
    git checkout -b feat/my-feature
    ```
-2. Make your changes following [Coding Conventions](./conventions.md).
+2. Make your changes following [docs/dev/conventions.md](docs/dev/conventions.md).
 3. Run the full check suite before pushing:
    ```bash
    cargo fmt --check
@@ -40,10 +40,10 @@ cryptographic correctness and memory-safety implications:
 
 | File | What to verify |
 |------|---------------|
-| `wssp-daemon/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
-| `wssp-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
-| `wssp-daemon/src/ipc.rs` | Socket permissions, timeout handling |
-| `wssp-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
+| `credentiald/src/session.rs` | HKDF parameters, AES key zeroization, DH validation |
+| `credentiald-core/src/vault.rs` | Nonce uniqueness, Argon2 parameters, zeroize on drop |
+| `credentiald/src/ipc.rs` | Socket permissions, timeout handling |
+| `credentiald-pam/src/lib.rs` | File permissions (0600), ownership, prompt delete-on-read |
 
 **Documentation**: if you change a data flow, update `docs/explanation/architecture.md`. If you change a
 cryptographic primitive, update `SECURITY.md`.

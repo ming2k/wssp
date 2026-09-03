@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Project renamed to `credentiald`**:
+  - Reorganized workspace crates: `credentiald`, `credentiald-core`, `credentiald-common`, `credentiald-cli`, `credentiald-prompter`, `credentiald-pam`.
+  - Daemon binary and systemd service renamed to `credentiald` / `credentiald.service`.
+  - PAM module renamed to `pam_credentiald.so` (`credentiald-pam-token`).
+  - Prompter GTK application ID updated to `org.credentiald.Prompter`.
+  - Environment variables updated to `CREDENTIALD_PROMPTER_PATH` and `CREDENTIALD_PASSWORD` (with legacy fallback).
+  - All documentation, tooling scripts, CI/CD workflows, and configurations updated for complete consistency.
+
 ## [1.1.4] - 2026-08-24
 
 ### Security & Hardening

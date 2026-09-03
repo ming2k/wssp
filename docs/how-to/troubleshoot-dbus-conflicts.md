@@ -2,16 +2,16 @@
 
 The well-known D-Bus name `org.freedesktop.secrets` may only have one owner per user session.
 When something else has already claimed the name — or two activation files both try to claim
-it — `wssp-daemon.service` will not start, or the wrong binary will answer libsecret calls.
+it — `credentiald.service` will not start, or the wrong binary will answer libsecret calls.
 
 This guide walks through diagnosing and resolving the most common conflicts.
 
-## Symptom: `wssp-daemon.service` fails to load
+## Symptom: `credentiald.service` fails to load
 
 ```
-systemctl --user status wssp-daemon.service
-# Loaded: error (Reason: Unit wssp-daemon.service failed to load properly, ...: File exists)
-# wssp-daemon.service: Two services allocated for the same bus name org.freedesktop.secrets, refusing operation.
+systemctl --user status credentiald.service
+# Loaded: error (Reason: Unit credentiald.service failed to load properly, ...: File exists)
+# credentiald.service: Two services allocated for the same bus name org.freedesktop.secrets, refusing operation.
 ```
 
 systemd refuses to load any `Type=dbus` unit if another loaded unit declares the same `BusName=`.
@@ -25,8 +25,8 @@ grep -rl 'BusName=org.freedesktop.secrets' \
   ~/.config/systemd/user/ 2>/dev/null
 ```
 
-Expected: exactly one path — `/usr/lib/systemd/user/wssp-daemon.service`. Anything else
-(`wss-daemon.service`, `gnome-keyring-secrets.service`, an old hand-edited copy in
+Expected: exactly one path — `/usr/lib/systemd/user/credentiald.service` (or `~/.config/systemd/user/credentiald.service`). Anything else
+(`wssp-daemon.service`, `gnome-keyring-secrets.service`, an old hand-edited copy in
 `~/.config/systemd/user/`) is a conflict.
 
 ### 2. Disable and remove the conflicting units
@@ -38,18 +38,18 @@ systemctl --user daemon-reload
 systemctl --user reset-failed <conflicting-unit>
 ```
 
-### 3. Start WSSP and confirm
+### 3. Start credentiald and confirm
 
 ```bash
-systemctl --user start wssp-daemon.service
-systemctl --user status wssp-daemon.service   # should be active (running)
+systemctl --user start credentiald.service
+systemctl --user status credentiald.service   # should be active (running)
 ```
 
 ---
 
 ## Symptom: a different binary answers `org.freedesktop.secrets`
 
-You expected `wssp-daemon` to own the bus, but `secret-tool` is hitting gnome-keyring, an old
+You expected `credentiald` to own the bus, but `secret-tool` is hitting gnome-keyring, an old
 debug build, or a stale dev binary.
 
 ### 1. Identify the current owner
@@ -58,10 +58,10 @@ debug build, or a stale dev binary.
 busctl --user status org.freedesktop.secrets | grep ^PID=
 # PID=2526
 ps -p 2526 -o pid,user,cmd --no-headers
-# 2526 ming /home/ming/projects/wssp/target/debug/wss-daemon
+# 2526 ming /usr/bin/credentiald
 ```
 
-If the path is not `/usr/bin/wssp-daemon` (or whatever you installed), something else launched it.
+If the path is not `/usr/bin/credentiald` (or whatever you installed), something else launched it.
 
 ### 2. Find every D-Bus activation file claiming the bus name
 
@@ -73,8 +73,7 @@ grep -rl 'Name=org.freedesktop.secrets' \
   ~/.local/share/dbus-1/services/ 2>/dev/null
 ```
 
-WSSP does **not** ship a `.service` activation file; it relies on systemd's `BusName=`
-activation instead. Any file you find from a prior dev workflow or a competing package is a
+`credentiald` relies on systemd's `BusName=` activation. Any file you find from a prior dev workflow or a competing package is a
 conflict.
 
 ### 3. Remove the activation file and kill the stale process
@@ -83,14 +82,14 @@ conflict.
 rm ~/.local/share/dbus-1/services/org.freedesktop.secrets.service
 kill <stale-pid>
 systemctl --user daemon-reload
-systemctl --user restart wssp-daemon.service
+systemctl --user restart credentiald.service
 ```
 
 ### 4. Re-verify ownership
 
 ```bash
 busctl --user status org.freedesktop.secrets | grep ^PID=
-systemctl --user show wssp-daemon.service --property=MainPID
+systemctl --user show credentiald.service --property=MainPID
 # Both PIDs should match.
 ```
 
@@ -116,7 +115,7 @@ done
 # Comment out lines invoking pam_gnome_keyring.so in /etc/pam.d/common-{auth,session}
 ```
 
-Log out and back in. Confirm with `busctl --user status org.freedesktop.secrets` that WSSP
+Log out and back in. Confirm with `busctl --user status org.freedesktop.secrets` that `credentiald`
 now owns the name.
 
 ---
@@ -125,11 +124,11 @@ now owns the name.
 
 | Source | Path | How it activates the daemon |
 |---|---|---|
-| WSSP systemd unit (intended) | `/usr/lib/systemd/user/wssp-daemon.service` | systemd `Type=dbus` + `BusName=` |
+| credentiald systemd unit (intended) | `/usr/lib/systemd/user/credentiald.service` | systemd `Type=dbus` + `BusName=` |
 | Stale dev D-Bus activation file | `~/.local/share/dbus-1/services/org.freedesktop.secrets.service` | dbus-daemon fork-execs the `Exec=` binary on first method call |
 | Old hand-edited systemd unit | `~/.config/systemd/user/<anything>.service` with `BusName=org.freedesktop.secrets` | Same as the intended unit — only one is allowed |
 | GNOME Keyring | `/usr/lib/systemd/user/gnome-keyring-daemon.service` + XDG autostart + PAM | Multiple paths; see above |
 | KWallet | `/usr/share/dbus-1/services/org.kde.kwalletd5.service` | dbus-daemon activation |
 
 See [../explanation/architecture.md](../explanation/architecture.md#service-activation) for
-why WSSP uses systemd `BusName=` activation rather than a `.service` file.
+why `credentiald` uses systemd `BusName=` activation rather than a standalone `.service` file.

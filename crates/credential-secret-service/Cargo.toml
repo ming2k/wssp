@@ -1,0 +1,18 @@
+[package]
+name = "credential-secret-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Secret Service D-Bus frontend protocol adapter for credentiald"
+
+[dependencies]
+credential-core = { path = "../credential-core" }
+credential-crypto = { path = "../credential-crypto" }
+credential-service = { path = "../credential-service" }
+zbus = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+zeroize = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+rand = { workspace = true }
+thiserror = { workspace = true }

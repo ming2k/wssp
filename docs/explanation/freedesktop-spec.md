@@ -1,12 +1,12 @@
 # The Secret Service API Specification
 
-WSSP is a provider for the [freedesktop.org Secret Service API](https://specifications.freedesktop.org/secret-service/latest/). This specification defines a standard D-Bus interface for securely storing and retrieving passwords and other secrets on Linux systems.
+`credentiald` is a provider for the [freedesktop.org Secret Service API](https://specifications.freedesktop.org/secret-service/latest/). This specification defines a standard D-Bus interface for securely storing and retrieving passwords and other secrets on Linux systems.
 
 Implementing this specification involves several nuances, particularly around state management, asynchronous prompting, and cryptographic data exchange.
 
 ## 1. D-Bus Object Hierarchy
 
-WSSP maps its internal state to the D-Bus object paths defined by the spec:
+`credentiald` maps its internal state to the D-Bus object paths defined by the spec:
 
 *   `/org/freedesktop/secrets`: The root `Service` object. Handles global operations like opening sessions, creating collections, and searching across all collections.
 *   `/org/freedesktop/secrets/collection/<id>`: A `Collection` of secrets (conceptually similar to a "keyring" or a "folder"). The default collection is often aliased as `login`.
@@ -28,7 +28,7 @@ When a client calls `Service.Unlock`, the daemon must:
 1.  Check if the requested objects are already unlocked. If so, return them immediately.
 2.  If they are locked, the daemon returns an empty list of unlocked objects and the object path to a newly created `Prompt`.
 3.  The client then subscribes to the `Completed` signal of that `Prompt` object.
-4.  The daemon spawns an external UI (like `wssp-prompter`) to ask the user for the master password.
+4.  The daemon spawns an external UI (like `credentiald-prompter`) to ask the user for the master password.
 5.  Once the UI returns the password and the daemon decrypts the vault, the daemon fires the `Completed` signal on the `Prompt` object, informing the client that the vault is now unlocked.
 
 **Crucially:** Mutating methods (`CreateItem`, `Delete`, `SetSecret`) or reading the payload (`GetSecret`) must explicitly reject calls with an `org.freedesktop.Secret.Error.IsLocked` D-Bus error if the vault is locked. Silent failures will cause client libraries to behave unpredictably.
@@ -68,7 +68,7 @@ To prevent secrets from being sniffed by other processes listening on the D-Bus 
 
 1.  **OpenSession**: The client calls `Service.OpenSession` proposing an algorithm (usually `dh-ietf1024-sha256-aes128-cbc-pkcs7`).
 2.  **Key Exchange**: The client provides its Diffie-Hellman public key. The daemon generates its own DH keypair, computes the shared secret, and returns its public key.
-3.  **Key Derivation**: WSSP and the client both use **HKDF-SHA256** (with no salt and empty info) to derive a 128-bit AES key from the DH shared secret. *(Note: The spec text says "SHA256", but the canonical `libsecret` implementation uses HKDF. Interoperability requires HKDF).*
+3.  **Key Derivation**: `credentiald` and the client both use **HKDF-SHA256** (with no salt and empty info) to derive a 128-bit AES key from the DH shared secret. *(Note: The spec text says "SHA256", but the canonical `libsecret` implementation uses HKDF. Interoperability requires HKDF).*
 4.  **Transit**: When `GetSecret` or `SetSecret` is called, the payload is AES-128-CBC encrypted (with PKCS#7 padding) using the derived session key.
 
 This ensures that even if another application monitors the D-Bus socket, it only sees AES ciphertext, while the actual password remains secure.

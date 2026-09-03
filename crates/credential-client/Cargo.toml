@@ -1,0 +1,20 @@
+[package]
+name = "credential-client"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Async client library for credentiald native IPC"
+
+[dependencies]
+credential-core = { path = "../credential-core" }
+credential-ipc = { path = "../credential-ipc" }
+tokio = { workspace = true, features = ["net", "io-util", "sync", "time"] }
+thiserror = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+credential-crypto = { path = "../credential-crypto" }
+credential-service = { path = "../credential-service" }
+credential-store = { path = "../credential-store" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

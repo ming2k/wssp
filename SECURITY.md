@@ -14,7 +14,7 @@
 | Prompter process hijacking | Socket path is inside `$XDG_RUNTIME_DIR` (mode 0700, owned by user) |
 | Secret access after screen lock | logind `Session.Lock` signal evicts the vault key (`vault = None`); subsequent D-Bus requests trigger re-unlock |
 
-**Outside scope**: WSSP trusts the D-Bus session bus. Any process that can connect to the
+**Outside scope**: `credentiald` trusts the D-Bus session bus. Any process that can connect to the
 user's session bus and call `Unlock` can trigger an unlock attempt (password prompt or
 keyfile read). This is an inherent property of the Secret Service API — the same limitation
 applies to gnome-keyring and KWallet.
@@ -79,7 +79,7 @@ key only protects the D-Bus wire transport (loopback), not the vault at rest. Th
 XChaCha20-Poly1305 with a 256-bit key, which is not affected.
 
 ### PAM token is plaintext on disk
-`wssp-pam` writes the login password (in password mode) to `/run/user/<UID>/wssp-pam-token`
+`credentiald-pam` writes the login password (in password mode) to `/run/user/<UID>/credentiald-pam-token`
 (mode 0600) upon `pam_setcred(PAM_ESTABLISH_CRED)`. The file exists only for the brief window between credential
 establishment and the daemon reading and zeroizing it.
 

@@ -1,0 +1,15 @@
+[package]
+name = "credential-store"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Secure durable storage and vault file persistence for credentiald"
+
+[dependencies]
+credential-core = { path = "../credential-core" }
+credential-crypto = { path = "../credential-crypto" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+zeroize = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }

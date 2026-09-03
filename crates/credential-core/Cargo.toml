@@ -1,0 +1,11 @@
+[package]
+name = "credential-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Pure domain types and error definitions for credentiald"
+
+[dependencies]
+zeroize = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }

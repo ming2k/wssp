@@ -1,0 +1,21 @@
+[package]
+name = "credential-ipc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Project"]
+description = "Native IPC protocol, length-prefixed framing, and peer authentication for credentiald"
+
+[dependencies]
+credential-core = { path = "../credential-core" }
+credential-crypto = { path = "../credential-crypto" }
+credential-service = { path = "../credential-service" }
+tokio = { workspace = true, features = ["net", "io-util", "sync", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+libc = { workspace = true }
+
+[dev-dependencies]
+credential-store = { path = "../credential-store" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
