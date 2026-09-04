@@ -1,128 +1,137 @@
-use adw::prelude::*;
-use adw::Application;
-use sigil_ipc::PromptResponse;
-use gtk4 as gtk;
-use libadwaita as adw;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
-fn main() -> gtk::glib::ExitCode {
+use iris::{Application, Config};
+use lens::{Frame, Input, TextBuf};
+use sigil_ipc::PromptResponse;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args()
         .nth(1)
         .as_deref()
         .is_some_and(|a| a == "--version" || a == "-V")
     {
         println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
-        return gtk::glib::ExitCode::SUCCESS;
+        return Ok(());
     }
 
-    let app = Application::builder()
-        .application_id("org.sigil.Prompter")
-        .build();
+    let mut state = PrompterState::new();
+    let config = Config::new("Vault Unlock")?
+        .app_id("org.sigil.Prompter")?
+        .size(420, 260);
 
-    app.connect_activate(|app| {
-        adw::StyleManager::default().set_color_scheme(adw::ColorScheme::Default);
-        build_ui(app);
-    });
+    Application::run(
+        config,
+        move |frame, input| state.build(frame, input),
+        None::<fn(iris::PaintHost)>,
+    )?;
 
-    app.run()
+    Ok(())
 }
 
-fn build_ui(app: &Application) {
-    let window = adw::Window::builder()
-        .application(app)
-        .title("Vault Unlock")
-        .default_width(360)
-        .resizable(false)
-        .modal(true)
-        .build();
+struct PrompterState {
+    password: TextBuf,
+    error_message: Option<&'static str>,
+}
 
-    let content = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    let vbox = gtk::Box::new(gtk::Orientation::Vertical, 18);
-    vbox.set_margin_top(32);
-    vbox.set_margin_bottom(32);
-    vbox.set_margin_start(32);
-    vbox.set_margin_end(32);
+impl PrompterState {
+    fn new() -> Self {
+        Self {
+            password: TextBuf::new(256, ""),
+            error_message: None,
+        }
+    }
 
-    let title = gtk::Label::builder()
-        .label("Enter Vault Password")
-        .css_classes(["title-2"])
-        .build();
-    vbox.append(&title);
-
-    let description = gtk::Label::builder()
-        .label("Please provide the master password to continue.")
-        .wrap(true)
-        .justify(gtk::Justification::Center)
-        .css_classes(["caption"])
-        .build();
-    vbox.append(&description);
-
-    let password_entry = gtk::PasswordEntry::builder()
-        .placeholder_text("Master Password")
-        .activates_default(true)
-        .build();
-    vbox.append(&password_entry);
-
-    let error_label = gtk::Label::builder()
-        .label("Password cannot be empty.")
-        .css_classes(["error"])
-        .visible(false)
-        .build();
-    vbox.append(&error_label);
-
-    let unlock_button = gtk::Button::builder()
-        .label("Unlock")
-        .css_classes(["suggested-action"])
-        .margin_top(6)
-        .build();
-    window.set_default_widget(Some(&unlock_button));
-    vbox.append(&unlock_button);
-
-    let window_clone = window.clone();
-    let entry_clone = password_entry.clone();
-    let error_clone = error_label.clone();
-
-    let perform_unlock = move || {
-        let password = entry_clone.text().to_string();
-        if password.is_empty() {
-            error_clone.set_visible(true);
+    fn submit(&mut self) {
+        let text = self.password.as_str();
+        let pwd = text.trim();
+        if pwd.is_empty() {
+            self.error_message = Some("Password cannot be empty.");
         } else {
-            send_password(password);
-            window_clone.close();
+            send_password(pwd.to_string());
+            iris::window_close();
         }
-    };
+    }
 
-    password_entry.connect_changed({
-        let error_label = error_label.clone();
-        move |_| error_label.set_visible(false)
-    });
-    unlock_button.connect_clicked({
-        let f = perform_unlock.clone();
-        move |_| f()
-    });
-    password_entry.connect_activate(move |_| perform_unlock());
-
-    let key_controller = gtk::EventControllerKey::new();
-    let window_for_esc = window.clone();
-    key_controller.connect_key_pressed(move |_, key, _, _| {
-        if key == gtk::gdk::Key::Escape {
-            window_for_esc.close();
+    fn build(&mut self, frame: &mut Frame, input: &Input) {
+        let raw = input.as_raw();
+        for ev in &raw.keys[..raw.key_count as usize] {
+            if !ev.pressed {
+                continue;
+            }
+            if ev.key == lens::key::ESCAPE {
+                iris::window_close();
+                return;
+            }
+            if ev.key == lens::key::RETURN {
+                self.submit();
+                return;
+            }
         }
-        gtk::glib::Propagation::Proceed
-    });
-    window.add_controller(key_controller);
 
-    content.append(&vbox);
-    window.set_content(Some(&content));
-    window.present();
-    password_entry.grab_focus();
+        let mut trigger_submit = false;
+        let mut trigger_cancel = false;
+
+        frame
+            .col()
+            .pad(24.0)
+            .gap(12.0)
+            .items_center()
+            .show(|frame| {
+                frame.label_sized("Enter Vault Password", 18.0);
+                frame.label("Please provide the master password to continue.");
+
+                frame.spacer(4.0);
+
+                if frame.textfield_password("##pwd", &mut self.password, "Master Password") {
+                    if self.error_message.is_some() {
+                        self.error_message = None;
+                    }
+                }
+
+                if let Some(err) = self.error_message {
+                    frame.label_sized(err, 12.0);
+                } else {
+                    frame.spacer(14.0);
+                }
+
+                frame.spacer(4.0);
+
+                frame
+                    .row()
+                    .gap(16.0)
+                    .items_center()
+                    .show(|frame| {
+                        if frame.button("Cancel") {
+                            trigger_cancel = true;
+                        }
+                        if frame.button_primary("Unlock") {
+                            trigger_submit = true;
+                        }
+                    });
+            });
+
+        if trigger_cancel {
+            iris::window_close();
+        } else if trigger_submit {
+            self.submit();
+        }
+    }
 }
 
 fn send_password(password: String) {
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let socket_path = PathBuf::from(runtime_dir).join("sigil.sock");
+    let socket_path = if let Ok(path) = std::env::var("SIGIL_SOCKET_PATH") {
+        PathBuf::from(path)
+    } else {
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+        let candidate = PathBuf::from(&runtime_dir).join("sigil/native.sock");
+        if candidate.exists() {
+            candidate
+        } else {
+            PathBuf::from(runtime_dir).join("sigil.sock")
+        }
+    };
 
     match UnixStream::connect(&socket_path) {
         Ok(mut stream) => {
@@ -133,6 +142,6 @@ fn send_password(password: String) {
                 let _ = stream.write_all(&serialized);
             }
         }
-        Err(e) => eprintln!("Failed to connect to daemon socket: {}", e),
+        Err(e) => eprintln!("Failed to connect to daemon socket at {:?}: {}", socket_path, e),
     }
 }

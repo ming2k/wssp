@@ -19,10 +19,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-4-dev \
-            libadwaita-1-dev \
             libdbus-1-dev \
             libpam0g-dev \
+            libvulkan-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libclang-dev \
             pkg-config
 
       - name: Setup Rust toolchain

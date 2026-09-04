@@ -28,3 +28,4 @@ Cargo.lock
 
 # Local debug/test scripts at repo root
 /test_*.sh
+.cargo/config.toml

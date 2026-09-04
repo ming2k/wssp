@@ -8,6 +8,9 @@ sigil-ipc = { path = "../sigil-ipc" }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-gtk4 = { version = "0.9", package = "gtk4" }
-libadwaita = { version = "0.7", package = "libadwaita" }
+iris = { workspace = true }
+lens = { workspace = true }
+lens-sys = { workspace = true }
+flux = { workspace = true }
+flux-sys = { workspace = true }
 serde_json = "1.0"

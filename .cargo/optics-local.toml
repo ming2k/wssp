@@ -1,0 +1,8 @@
+# Local-only source patches for cross-repository development.
+[patch."https://github.com/ming2k/optics"]
+flux = { path = "../optics/bindings/flux-rs/crates/flux" }
+flux-sys = { path = "../optics/bindings/flux-rs/crates/flux-sys" }
+lens = { path = "../optics/bindings/lens-rs/crates/lens" }
+lens-sys = { path = "../optics/bindings/lens-rs/crates/lens-sys" }
+iris = { path = "../optics/bindings/iris-rs/crates/iris" }
+iris-sys = { path = "../optics/bindings/iris-rs/crates/iris-sys" }

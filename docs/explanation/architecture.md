@@ -47,7 +47,7 @@ sigil/
 │   ├── sigil-client/         # Async Rust SDK for desktop components (e.g. portal backend)
 │   ├── sigil-secret-service/ # D-Bus org.freedesktop.secrets protocol adapter
 │   ├── sigil/               # Daemon assembly entrypoint
-│   ├── sigil-prompter/      # Transient GTK4 / Libadwaita prompt agent
+│   ├── sigil-prompter/      # Transient Optics (iris/lens) prompt agent
 │   ├── sigil-cli/           # CLI administration tool
 │   └── sigil-pam/           # Hardened PAM module
 │
