@@ -11,7 +11,10 @@ For security vulnerabilities, do **not** open a public issue. Contact the mainta
 
 ## Development Setup
 
-See [docs/dev/development.md](docs/dev/development.md) for build instructions and debugging tools.
+See [docs/dev/setup.md](docs/dev/setup.md) for environment setup and dependencies,
+[docs/dev/development.md](docs/dev/development.md) for build instructions and debugging tools,
+and [docs/dev/cross-repository-development.md](docs/dev/cross-repository-development.md) for
+the linked Git worktree development workflow.
 
 ## Submitting a Pull Request
 

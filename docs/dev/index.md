@@ -27,6 +27,15 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets
 ```
 
+## Developer Guides
+
+| Guide | Purpose |
+|---|---|
+| [Developer Setup](setup.md) | System dependencies, build commands, and pre-flight cleanup |
+| [Development Guide](development.md) | Day-to-day daemon testing, D-Bus commands, and PAM workflow |
+| [Worktree & Cross-Repository Development](cross-repository-development.md) | Linked Git worktree workflow, cache isolation, and desktop integration |
+| [Coding Conventions](conventions.md) | Rust style, error handling, sensitive data handling, and commit conventions |
+
 ## Architectural Rules
 
 1. `sigil-core` MUST NOT depend on D-Bus, Tokio, SQLite, or UI frameworks.

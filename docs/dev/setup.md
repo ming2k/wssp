@@ -36,7 +36,13 @@ rustup update stable
 
 ## 2. Building the Project
 
-`sigil` is organized as a Cargo workspace. You can build all components at once or focus on the daemon for faster iteration.
+`sigil` is organized as a Cargo workspace. For active feature work, use a
+linked Git worktree (`sigil-dev`) on the local `dev` branch to isolate build
+artifacts and changes from canonical `main` (see
+[Worktree and Cross-Repository Development](cross-repository-development.md)).
+
+You can build all components at once or focus on the daemon for faster
+iteration:
 
 ```bash
 # Build the entire workspace (daemon, cli, prompter, pam, core, common)
@@ -145,6 +151,7 @@ recipes.
 
 ## 7. Next Steps
 
+- Worktree and cross-repository workflow: `docs/dev/cross-repository-development.md`.
 - Testing strategy and D-Bus debugging recipes: `docs/dev/development.md`.
 - D-Bus API implementation details and spec compliance: `docs/explanation/freedesktop-spec.md`.
 - Component layout and service-activation rationale: `docs/explanation/architecture.md`.
