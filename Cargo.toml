@@ -36,10 +36,10 @@ hkdf = "0.12"
 hmac = "0.12"
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
-iris = { git = "https://github.com/ming2k/optics", tag = "v0.0.33" }
-lens = { git = "https://github.com/ming2k/optics", tag = "v0.0.33" }
-lens-sys = { git = "https://github.com/ming2k/optics", tag = "v0.0.33" }
-flux = { git = "https://github.com/ming2k/optics", tag = "v0.0.33" }
-flux-sys = { git = "https://github.com/ming2k/optics", tag = "v0.0.33" }
+iris = { git = "https://github.com/ming2k/optics", tag = "v0.0.34" }
+lens = { git = "https://github.com/ming2k/optics", tag = "v0.0.34" }
+lens-sys = { git = "https://github.com/ming2k/optics", tag = "v0.0.34" }
+flux = { git = "https://github.com/ming2k/optics", tag = "v0.0.34" }
+flux-sys = { git = "https://github.com/ming2k/optics", tag = "v0.0.34" }
 inotify = { version = "0.10", features = ["stream"] }
 libc = "0.2"

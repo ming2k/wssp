@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-09-05
+
+- Migrated `sigil-prompter` to native Optics (iris/lens) stack, completely removing GTK4 and Libadwaita dependencies.
+- Updated Optics stack dependencies to v0.0.34.
+
 ## [1.2.0] - 2026-09-04
 
 ### Changed
